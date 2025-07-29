@@ -51,6 +51,11 @@ class KnowledgeBase:
         # 2) Add the clauses to the knowledge base
         self.tell(*clauses)
 
+    def ask_if_true(self, query: list[Literal]):
+        """Check if a query can be resolved with the knowledge base."""
+        from .infer_engine import DPLLEngine
+        return DPLLEngine()(self, query)[0]
+
     def _adjacent(self, i, j):
         """Generate adjacent cells for a given cell (i, j)."""
         for di, dj in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
