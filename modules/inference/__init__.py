@@ -1,6 +1,6 @@
 from .knowledge import KnowledgeBase
 from .logic import *
-from .infer_engine import InferEngine, ResolutionEngine, DPLLEngine
+from .infer_engine import InferEngine, DPLLEngine
 
 __all__ = [
     'KnowledgeBase',
@@ -11,6 +11,5 @@ __all__ = [
     'breeze',
     'stench',
     'InferEngine',
-    'ResolutionEngine',
     'DPLLEngine'
 ]

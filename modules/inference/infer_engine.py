@@ -96,23 +96,3 @@ class DPLLEngine(InferEngine):
                 continue
             new_clauses.append(Clause(*[l for l in clause if l != ~lit]))
         return new_clauses
-
-
-class ResolutionEngine(InferEngine):
-    """Resolution-based inference engine."""
-
-    def __call__(self, knowledge_base, query: list[Literal]) -> bool:
-        """Check if a query can be resolved with the knowledge base."""
-        clauses = [*knowledge_base, Clause(*(~lit for lit in query))]
-        new_clauses = set()
-
-        while True:
-            for c1, c2 in combinations(clauses, 2):
-                resolvents = c1.resolve(c2)
-                if any(r.empty() for r in resolvents):
-                    return True
-                new_clauses = new_clauses | set(resolvents)
-            if new_clauses.issubset(clauses):
-                return False
-            clauses = list(set(clauses) | new_clauses)
-            new_clauses.clear()
