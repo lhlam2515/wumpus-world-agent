@@ -50,16 +50,30 @@ class RoutePlanner(SearchProblem):
     def goal_test(self, state: Position):
         """Returns True if the state is a goal state."""
         if isinstance(self.goal, list):
-            return any(state.location == goal.location for goal in self.goal)
-        return state == self.goal
+            if all(isinstance(goal, Position) for goal in self.goal):
+                return any(state == goal for goal in self.goal)
+            else:
+                return any(state.location == goal for goal in self.goal)
+
+        if isinstance(self.goal, Position):
+            return state == self.goal
+        return state.location == self.goal
 
     def heuristic(self, node: Node) -> int:
         """Heuristic function for the planner."""
-        node_state = node.state
+        # Calculate the Manhattan distance to the nearest goal
+        def manhattan_distance(pos1, pos2):
+            return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
+
         if isinstance(self.goal, list):
-            min_tuple = min(node_state - g for g in self.goal)
-            return sum(min_tuple)
-        return sum(node_state - self.goal)
+            if all(isinstance(goal, Position) for goal in self.goal):
+                return min(node.state - goal for goal in self.goal)
+            else:
+                return min(manhattan_distance(node.state.location, goal) for goal in self.goal)
+
+        if isinstance(self.goal, Position):
+            return node.state - self.goal
+        return manhattan_distance(node.state.location, self.goal)
 
     def plan_route(self):
         """Plan a route from the current position to the goals."""
