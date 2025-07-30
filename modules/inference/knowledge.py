@@ -57,7 +57,7 @@ class KnowledgeBase:
     def ask_if_true(self, query: list[Literal]):
         """Check if a query can be resolved with the knowledge base."""
         from .infer_engine import DPLLEngine
-        return DPLLEngine()(self, query)[0]
+        return DPLLEngine()(self, query)
 
     def refresh(self):
         """Refresh the knowledge base by removing redundant clauses."""

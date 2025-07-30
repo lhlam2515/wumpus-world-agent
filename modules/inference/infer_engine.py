@@ -16,23 +16,22 @@ class InferEngine(ABC):
 class DPLLEngine(InferEngine):
     """DPLL-based inference engine."""
 
-    def __call__(self, knowledge_base, query: list[Literal]) -> tuple[bool, set[Literal]]:
+    def __call__(self, knowledge_base, query: list[Literal]) -> bool:
         """Check if a query can be resolved with the knowledge base."""
         clauses = set([*knowledge_base, Clause(*[~lit for lit in query])])
         symbols = {lit.name for clause in clauses for lit in clause}
 
-        satisfied, model = self._dpll(clauses, symbols, set())
-        return not satisfied, model
+        return not self._dpll(clauses, symbols, set())
 
     def _dpll(self, clauses, symbols, model):
         # Remove satisfied clauses
         clauses = [c for c in clauses if not any(lit in model for lit in c)]
         # If every clause is satisfied by the model, return True
         if not clauses:
-            return True, model
+            return True
         # If any clause is unsatisfied (empty), return False
         if any(clause.empty() for clause in clauses):
-            return False, model
+            return False
 
         # Choose a symbol to assign
         symbol, sign = self._find_pure_symbol(symbols, clauses)
@@ -54,18 +53,18 @@ class DPLLEngine(InferEngine):
 
         # Try assigning the symbol as True
         new_clauses = self._simplify(clauses, Literal(symbol))
-        satisfied, _model = self._dpll(
+        satisfied = self._dpll(
             new_clauses, rest, model | {Literal(symbol)})
         if satisfied:
-            return True, _model
+            return True
         # Try assigning the symbol as False
         new_clauses = self._simplify(clauses, Literal(symbol, False))
-        satisfied, _model = self._dpll(
+        satisfied = self._dpll(
             new_clauses, rest, model | {Literal(symbol, False)})
         if satisfied:
-            return True, _model
+            return True
         # If neither assignment leads to a solution, return False
-        return False, model
+        return False
 
     def _find_pure_symbol(self, symbols, clauses):
         """Find a pure symbol in the clauses."""
