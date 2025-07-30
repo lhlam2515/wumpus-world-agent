@@ -81,3 +81,32 @@ class Position:
     def __sub__(self, other) -> tuple[int, int, int]:
         """Subtracts another position from this one, returning a tuple of differences."""
         return abs(self.x - other.x), abs(self.y - other.y), self.get_orientation() - other.get_orientation()
+
+
+class Action(Enum):
+    """Enum-like class for actions"""
+    FORWARD = "Forward"
+    TURN_LEFT = "Turn Left"
+    TURN_RIGHT = "Turn Right"
+    GRAB = "Grab"
+    SHOOT = "Shoot"
+    CLIMB = "Climb"
+
+    @staticmethod
+    def forward(position: Position) -> Position:
+        """Returns a new position after moving forward."""
+        x, y = position.location
+        new_x, new_y = Orientation.forward(position.get_orientation(), x, y)
+        return Position(new_x, new_y, position.get_orientation())
+
+    @staticmethod
+    def turn_left(position: Position) -> Position:
+        """Returns a new position after turning left."""
+        new_orientation = Orientation.turn_left(position.get_orientation())
+        return Position(position.x, position.y, new_orientation)
+
+    @staticmethod
+    def turn_right(position: Position) -> Position:
+        """Returns a new position after turning right."""
+        new_orientation = Orientation.turn_right(position.get_orientation())
+        return Position(position.x, position.y, new_orientation)
