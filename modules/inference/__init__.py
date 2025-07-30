@@ -10,6 +10,9 @@ __all__ = [
     'pit',
     'breeze',
     'stench',
+    'glitter',
+    'bump',
+    'scream',
     'InferEngine',
     'DPLLEngine'
 ]
