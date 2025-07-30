@@ -1,116 +1,83 @@
-"""Utility classes and data structures for the Wumpus World Agent.
-
-This module provides core data structures for representing positions,
-orientations, and common utility functions used throughout the project.
-"""
-
-from enum import IntEnum
-from typing import NamedTuple
+from enum import Enum
 
 
-class Position(NamedTuple):
-    """Represents a coordinate position in the Wumpus World grid.
+class Orientation(Enum):
+    """Enum-like class for orientations."""
+    NORTH = "North"
+    EAST = "East"
+    SOUTH = "South"
+    WEST = "West"
 
-    This immutable class encapsulates a 2D grid position using zero-based
-    indexing, where (0,0) represents the starting cell in the bottom-left
-    corner of the Wumpus World grid.
+    @staticmethod
+    def turn_left(orientation):
+        if orientation == Orientation.NORTH:
+            return Orientation.WEST
+        if orientation == Orientation.WEST:
+            return Orientation.SOUTH
+        if orientation == Orientation.SOUTH:
+            return Orientation.EAST
+        return Orientation.NORTH  # EAST
 
-    **Coordinate System**:
-    - x-axis: Row index (0-based, increases southward/downward)
-    - y-axis: Column index (0-based, increases eastward/rightward)
-    - Origin (0,0): Bottom-left corner (agent starting position)
+    @staticmethod
+    def turn_right(orientation):
+        if orientation == Orientation.NORTH:
+            return Orientation.EAST
+        if orientation == Orientation.EAST:
+            return Orientation.SOUTH
+        if orientation == Orientation.SOUTH:
+            return Orientation.WEST
+        return Orientation.NORTH  # WEST
 
-    **Grid Layout Example (4×4)**:
-    ```
-    (0,3) (0,2) (0,1) (0,0)  ← y=3 (top row)
-    (1,3) (1,2) (1,1) (1,0)  ← y=2
-    (2,3) (2,2) (2,1) (2,0)  ← y=1  
-    (3,3) (3,2) (3,1) (3,0)  ← y=0 (bottom row)
-      ↑     ↑     ↑     ↑
-     x=3   x=2   x=1   x=0
-    ```
+    @staticmethod
+    def forward(orientation, x, y):
+        if orientation == Orientation.NORTH:
+            return x, y + 1
+        if orientation == Orientation.EAST:
+            return x + 1, y
+        if orientation == Orientation.SOUTH:
+            return x, y - 1
+        return x - 1, y  # WEST
 
-    Attributes:
-        x: Row index (0-based, increases southward).
-        y: Column index (0-based, increases eastward).
-
-    Example:
-        >>> start = Position(0, 0)  # Bottom-left corner
-        >>> center = Position(2, 2)  # Center of 4×4 grid
-        >>> 
-        >>> # Position arithmetic
-        >>> delta = Position(1, 0)  # Move south
-        >>> new_pos = Position(start.x + delta.x, start.y + delta.y)
-    """
-    x: int
-    y: int
+    def __sub__(self, other):
+        """Subtracts another orientation from this one, returning a tuple of differences."""
+        if self.value == other.value:
+            return 0
+        if self.value == "North" or self.value == "East":
+            return 1 if other.value in ["South", "West"] else 2
+        return 1 if other.value in ["North", "East"] else 2  # South or West
 
 
-class Orientation(IntEnum):
-    """Encodes agent orientation as integer constants.
+class Position:
+    """Class representing a position with coordinates and orientation."""
 
-    This enumeration represents the four cardinal directions the agent
-    can face, with arithmetic support for rotation calculations.
+    def __init__(self, x: int = 0, y: int = 0, orientation: Orientation = Orientation.WEST):
+        self.x = x
+        self.y = y
+        self.__orientation = orientation
 
-    Attributes:
-        UP: Facing north (towards decreasing x).
-        RIGHT: Facing east (towards increasing y).
-        DOWN: Facing south (towards increasing x).
-        LEFT: Facing west (towards decreasing y).
-    """
-    UP = 0
-    RIGHT = 1
-    DOWN = 2
-    LEFT = 3
+    @property
+    def location(self) -> tuple[int, int]:
+        return self.x, self.y
 
-    def turn_left(self) -> 'Orientation':
-        """Return new orientation after turning left.
+    @location.setter
+    def location(self, location: tuple[int, int]):
+        self.x, self.y = location
 
-        Returns:
-            New orientation after a 90-degree counterclockwise turn.
-        """
-        return Orientation((self - 1) % 4)
+    def get_orientation(self) -> Orientation:
+        return self.__orientation
 
-    def turn_right(self) -> 'Orientation':
-        """Return new orientation after turning right.
+    def set_orientation(self, orientation: Orientation):
+        self.__orientation = orientation
 
-        Returns:
-            New orientation after a 90-degree clockwise turn.
-        """
-        return Orientation((self + 1) % 4)
+    def __eq__(self, other):
+        if self.location != other.location:
+            return False
+        return self.get_orientation() == other.get_orientation()
 
-    def to_vector(self) -> Position:
-        """Convert orientation to movement vector for position calculations.
+    def __lt__(self, other):
+        """Less than comparison based on coordinates and orientation."""
+        return (self.get_orientation(), self.location) < (other.get_orientation(), other.location)
 
-        Transforms the orientation into a displacement vector that can be
-        added to a position to calculate the result of moving forward.
-
-        **Vector Mappings**:
-        - UP (North): (-1, 0) - decreases x coordinate
-        - DOWN (South): (1, 0) - increases x coordinate  
-        - LEFT (West): (0, -1) - decreases y coordinate
-        - RIGHT (East): (0, 1) - increases y coordinate
-
-        Returns:
-            Position representing the displacement vector (dx, dy)
-            for moving one step in this orientation.
-
-        Raises:
-            ValueError: If orientation value is invalid.
-
-        Example:
-            >>> pos = Position(2, 3)
-            >>> direction = Orientation.RIGHT
-            >>> new_pos = Position(pos.x + direction.to_vector().x,
-            ...                   pos.y + direction.to_vector().y)
-            >>> # new_pos is Position(2, 4) - moved east
-        """
-        if self == Orientation.UP:
-            return Position(-1, 0)
-        if self == Orientation.DOWN:
-            return Position(1, 0)
-        if self == Orientation.LEFT:
-            return Position(0, -1)
-        if self == Orientation.RIGHT:
-            return Position(0, 1)
-        raise ValueError(f"Invalid orientation: {self}")
+    def __sub__(self, other) -> tuple[int, int, int]:
+        """Subtracts another position from this one, returning a tuple of differences."""
+        return abs(self.x - other.x), abs(self.y - other.y), self.get_orientation() - other.get_orientation()
