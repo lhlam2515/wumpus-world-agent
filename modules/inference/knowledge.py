@@ -34,14 +34,17 @@ class KnowledgeBase:
             raise ValueError(
                 "Unexpected clause type. Must be Literal or Clause.")
 
-        clauses = set(clauses)
+        clauses = sorted(clauses, key=lambda c: repr(c))
         for clause in clauses:
             new = Clause(clause) if isinstance(clause, Literal) else clause
-
+            # Remove negated clauses if they already exist,
+            # to avoid contradictions due to the dynamic information
             if all(c in self.clauses for c in ~new):
-                # Remove the old clauses that are subsumed by the new clause
                 self.clauses.difference_update(set(~new))
+
             self.clauses = self.clauses.union({new})
+
+        self.refresh()
 
     def tell_percept(self, i, j, percepts: dict[str, bool]):
         """Tell the knowledge base about a percept at (i, j)."""
@@ -55,6 +58,36 @@ class KnowledgeBase:
         """Check if a query can be resolved with the knowledge base."""
         from .infer_engine import DPLLEngine
         return DPLLEngine()(self, query)[0]
+
+    def refresh(self):
+        """Refresh the knowledge base by removing redundant clauses."""
+        # Get unit clauses as a set of unit literals
+        unit_literals = {c.unit() for c in self.clauses if c.is_unit()}
+        if not unit_literals:
+            return
+
+        # Remove clauses that contain unit literals
+        clauses_to_remove = set()
+        for clause in self.clauses:
+            if not clause.is_unit() and any(lit in clause for lit in unit_literals):
+                clauses_to_remove.add(clause)
+        self.clauses -= clauses_to_remove
+
+        # Simplify the clauses by removing the unit literals
+        new_clauses = set()
+        for clause in self.clauses:
+            simplified = clause.simplify(unit_literals)
+            if simplified.empty():
+                raise ValueError("Knowledge base is inconsistent.")
+            new_clauses.add(simplified)
+
+        # If the new clauses are the same as the old ones, do nothing
+        if new_clauses.issubset(self.clauses):
+            return
+
+        # Otherwise, update the knowledge base with the new clauses
+        self.clauses = new_clauses
+        self.refresh()
 
     def _adjacent(self, i, j):
         """Generate adjacent cells for a given cell (i, j)."""

@@ -31,7 +31,7 @@ class Clause():
         self.literals = set(literals)
 
     def __hash__(self):
-        return hash(frozenset(self.literals))
+        return hash(tuple(sorted(self.literals, key=lambda x: (x.sign, x.name))))
 
     def __eq__(self, other):
         return self.literals == other.literals
@@ -66,16 +66,24 @@ class Clause():
     def empty(self):
         return len(self.literals) == 0
 
-    def resolve(self, other):
-        """Resolve this clause with another clause."""
-        resolvents = []
+    def is_unit(self):
+        """Check if the clause is a unit clause (contains only one literal)."""
+        return len(self.literals) == 1
 
-        for lit in other:
-            if ~lit in self.literals:
-                literals = (self.literals - {~lit}) | (other.literals - {lit})
-                resolvents.append(Clause(*literals))
+    def unit(self):
+        """Get the unit literal if the clause is a unit clause."""
+        if self.is_unit():
+            return next(iter(self.literals))
+        raise ValueError("Clause is not a unit clause")
 
-        return resolvents
+    def simplify(self, unit_literals):
+        """Simplify the clause by removing literals that are negated in unit literals."""
+        simplified_literals = {
+            lit for lit in self.literals if ~lit not in unit_literals}
+        if len(simplified_literals) == 0:
+            return Clause()
+
+        return Clause(*simplified_literals)
 
 
 def wumpus(i, j):
