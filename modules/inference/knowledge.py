@@ -11,6 +11,7 @@ class KnowledgeBase:
 
         # Initialize the knowledge base with clauses
         self.clauses: set[Clause] = set(~(wumpus(0, 0) | pit(0, 0)))
+        self.__symbols = set()  # To keep track of symbols
 
     def __iter__(self):
         """Iterate over the clauses in the knowledge base."""
@@ -43,6 +44,7 @@ class KnowledgeBase:
                 self.clauses.difference_update(set(~new))
 
             self.clauses = self.clauses.union({new})
+            self.__symbols.update([lit.name for lit in new.literals])
 
         self.refresh()
 
@@ -56,6 +58,12 @@ class KnowledgeBase:
 
     def ask_if_true(self, query: list[Literal]):
         """Check if a query can be resolved with the knowledge base."""
+        if all(lit in self.clauses for lit in query):
+            return True
+
+        if any(lit.name not in self.__symbols for lit in query):
+            return None
+
         from .infer_engine import DPLLEngine
         return DPLLEngine()(self, query)
 
