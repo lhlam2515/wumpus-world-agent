@@ -107,6 +107,8 @@ class KnowledgeBase:
             elif percept == 'stench':
                 clauses.add(stench(i, j) if value else ~stench(i, j))
                 clauses.update(self._stench_axioms(i, j))
+            elif percept == 'glitter':
+                clauses.add(glitter(i, j) if value else ~glitter(i, j))
 
         # No Wumpus and Pit in the same cell
         clauses.add(~wumpus(i, j) | ~pit(i, j))

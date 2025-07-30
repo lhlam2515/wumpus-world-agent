@@ -104,3 +104,18 @@ def breeze(i, j):
 def stench(i, j):
     """Create a Stench literal."""
     return Literal(f"S_{i}_{j}")
+
+
+def glitter(i, j):
+    """Create a Glitter literal."""
+    return Literal(f"G_{i}_{j}")
+
+
+def bump(i, j):
+    """Create a Bump literal."""
+    return Literal(f"Bu_{i}_{j}")
+
+
+def scream():
+    """Create a Scream literal."""
+    return Literal(f"Scream")
