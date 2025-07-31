@@ -119,8 +119,12 @@ class KnowledgeBase:
             elif percept == 'scream' and isinstance(value, tuple):
                 clauses.add(wumpus(*value))
 
-        # No Wumpus and Pit in the same cell
+        # Add axioms for adjacent cells based on the percepts
         clauses.add(~wumpus(i, j) | ~pit(i, j))
+        for ni, nj in self._adjacent(i, j):
+            clauses.update(self._breeze_axioms(ni, nj))
+            clauses.update(self._stench_axioms(ni, nj))
+            clauses.add(~wumpus(ni, nj) | ~pit(ni, nj))
 
         return clauses
 
