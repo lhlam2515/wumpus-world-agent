@@ -45,7 +45,7 @@ class Environment(ABC):
 
         actions = []
         for agent in self.agents:
-            if agent.is_alive():
+            if agent.alive:
                 actions.append(agent.program(self.percept(agent)))
             else:
                 actions.append(None)
