@@ -1,4 +1,4 @@
-from modules.utils import Position
+from modules.utils import Action, Position
 from collections.abc import Callable
 
 
@@ -17,7 +17,7 @@ class Agent(Thing):
         self.performance = 0
 
         if program is None or not isinstance(program, Callable):
-            self.program = lambda percept: "NOOP"
+            self.program = lambda percept: Action.NOOP
         else:
             self.program = program
 

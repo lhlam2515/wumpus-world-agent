@@ -110,6 +110,7 @@ class Action(Enum):
     GRAB = "Grab"
     SHOOT = "Shoot"
     CLIMB = "Climb"
+    NOOP = "NoOp"  # No operation, used when no action is needed
 
     @staticmethod
     def forward(position: Position) -> Position:
