@@ -38,6 +38,23 @@ class Orientation(Enum):
             return x, y - 1
         return x - 1, y  # WEST
 
+    def __hash__(self):
+        """Returns a hash value for the orientation."""
+        return hash(self.value)
+
+    def __lt__(self, other):
+        """Less than comparison based on orientation value."""
+        if self.value == other.value:
+            return False
+
+        if self.value == "East":
+            return True
+        if self.value == "South":
+            return other.value in ["West", "North"]
+        if self.value == "West":
+            return other.value in ["North"]
+        return False  # North
+
     def __sub__(self, other):
         """Subtracts another orientation from this one, returning a tuple of differences."""
         if self.value == other.value:
@@ -50,9 +67,8 @@ class Orientation(Enum):
 class Position:
     """Class representing a position with coordinates and orientation."""
 
-    def __init__(self, x: int = 0, y: int = 0, orientation: Orientation = Orientation.WEST):
-        self.x = x
-        self.y = y
+    def __init__(self, x: int = 0, y: int = 0, orientation: Orientation = Orientation.EAST):
+        self.x, self.y = x, y
         self.__orientation = orientation
 
     @property
@@ -74,6 +90,9 @@ class Position:
             return False
         return self.get_orientation() == other.get_orientation()
 
+    def __hash__(self):
+        return hash((self.x, self.y, self.get_orientation()))
+
     def __lt__(self, other):
         """Less than comparison based on coordinates and orientation."""
         return (self.get_orientation(), self.location) < (other.get_orientation(), other.location)
@@ -86,8 +105,8 @@ class Position:
 class Action(Enum):
     """Enum-like class for actions"""
     FORWARD = "Forward"
-    TURN_LEFT = "Turn Left"
-    TURN_RIGHT = "Turn Right"
+    TURN_LEFT = "TurnLeft"
+    TURN_RIGHT = "TurnRight"
     GRAB = "Grab"
     SHOOT = "Shoot"
     CLIMB = "Climb"
