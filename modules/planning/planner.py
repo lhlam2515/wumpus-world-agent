@@ -83,8 +83,5 @@ class RoutePlanner(SearchProblem):
     def plan_route(self):
         """Plan a route from the current position to the goals."""
         from .astar_search import AStarSearch
-
         result = AStarSearch(self)()
-        if result is None:
-            return []
-        return result.solution()
+        return result.solution() if result else []
