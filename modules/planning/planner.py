@@ -42,6 +42,10 @@ class RoutePlanner(SearchProblem):
         elif action == Action.TURN_RIGHT:
             orientation = Orientation.turn_right(orientation)
 
+        # Check if the proposed location is goal
+        if self.goal_test(Position(*proposed_location, orientation)):
+            return Position(*proposed_location, orientation)
+
         # Check if the proposed location is allowed
         if proposed_location not in self.allowed:
             proposed_location = x, y

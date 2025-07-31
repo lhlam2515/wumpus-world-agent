@@ -75,7 +75,7 @@ class HybridAgent(Explorer):
             uncertain_positions -= set(self.pit_positions)
 
             temp = self.plan_route(
-                self.position, uncertain_positions, safe_points | uncertain_positions
+                self.position, uncertain_positions, safe_points
             )
             self.plan.extend(temp)
 
@@ -114,7 +114,7 @@ class HybridAgent(Explorer):
                     shoot_positions.append(Position(x, p, Orientation.SOUTH))
 
         if len(shoot_positions) == 0:
-            return []
+            return [Action.SHOOT]
 
         from modules.planning import RoutePlanner
         planner = RoutePlanner(current, shoot_positions, allowed, self.size)
