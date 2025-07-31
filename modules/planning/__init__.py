@@ -1,3 +1,3 @@
-from planner import RoutePlanner
+from .planner import RoutePlanner
 
 __all__ = ['RoutePlanner']
