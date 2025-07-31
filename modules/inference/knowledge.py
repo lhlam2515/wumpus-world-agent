@@ -1,4 +1,3 @@
-from itertools import combinations
 from .logic import *
 
 
@@ -48,7 +47,7 @@ class KnowledgeBase:
 
         self.refresh()
 
-    def tell_percept(self, i, j, percepts: dict[str, bool]):
+    def tell_percept(self, i, j, percepts: dict[str, bool | tuple[int, int]]):
         """Tell the knowledge base about a percept at (i, j)."""
         # 1) Create the clauses based on the percepts
         clauses = self._make_percept_clauses(i, j, percepts)
@@ -104,7 +103,7 @@ class KnowledgeBase:
             if 0 <= ni < self.size and 0 <= nj < self.size:
                 yield (ni, nj)
 
-    def _make_percept_clauses(self, i, j, percepts: dict[str, bool]):
+    def _make_percept_clauses(self, i, j, percepts: dict[str, bool | tuple[int, int]]):
         """Generate clauses based on percepts for a given cell (i, j)."""
         clauses = set()
 
@@ -116,7 +115,9 @@ class KnowledgeBase:
                 clauses.add(stench(i, j) if value else ~stench(i, j))
                 clauses.update(self._stench_axioms(i, j))
             elif percept == 'glitter':
-                clauses.add(glitter(i, j) if value else ~glitter(i, j))
+                clauses.add(glitter() if value else ~glitter())
+            elif percept == 'scream' and isinstance(value, tuple):
+                clauses.add(wumpus(*value))
 
         # No Wumpus and Pit in the same cell
         clauses.add(~wumpus(i, j) | ~pit(i, j))

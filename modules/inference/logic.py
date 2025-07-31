@@ -106,9 +106,9 @@ def stench(i, j):
     return Literal(f"S_{i}_{j}")
 
 
-def glitter(i, j):
+def glitter():
     """Create a Glitter literal."""
-    return Literal(f"G_{i}_{j}")
+    return Literal("Glitter")
 
 
 def bump(i, j):
