@@ -1,43 +1,81 @@
-from modules.utils import Orientation
+from modules.utils import Position
 from collections.abc import Callable
 
 
 class Thing:
+    location = None
+
     def __repr__(self):
         return f"{getattr(self, '__name__', self.__class__.__name__)}"
-
-    def is_alive(self):
-        """Check if the thing is alive."""
-        return hasattr(self, 'alive') and self.alive  # type: ignore
 
 
 class Agent(Thing):
     def __init__(self, program=None):
         self.alive = True
         self.bump = False
-        self.holding = []
+        self.holding = set()
         self.performance = 0
 
         if program is None or not isinstance(program, Callable):
-            print("No program provided, using default behavior.")
-
-            self.program = lambda percept: eval(
-                input(f"Percept: {percept}; action? "))
+            self.program = lambda percept: "NOOP"
         else:
             self.program = program
-
-    def can_grab(self, thing):
-        """Check if the agent can grab the specified thing."""
-        return False
 
 
 class Explorer(Agent):
     def __init__(self, program=None):
         super().__init__(program)
-        self.orientation = Orientation.EAST
-        self.has_arrow = True
+        self.position = Position()  # Default position at (0, 0) facing East
+        self.holding: set[Thing] = {Arrow()}
+        self.killed_by = ""
         self.visited = set()
 
-    def can_grab(self, thing):
-        """Explorer can grab gold."""
-        return thing.__class__.__name__ == "Gold"
+    @property
+    def has_arrow(self):
+        return any(isinstance(thing, Arrow) for thing in self.holding)
+
+    @has_arrow.setter
+    def has_arrow(self, value):
+        if value:
+            self.holding.add(Arrow())
+        else:
+            self.holding = {
+                thing for thing in self.holding if not isinstance(thing, Arrow)
+            }
+
+    @property
+    def has_gold(self):
+        return any(isinstance(thing, Gold) for thing in self.holding)
+
+    def grab_gold(self, thing):
+        """Grab gold if present at the agent's location."""
+        self.holding.add(thing) if isinstance(thing, Gold) else None
+
+
+class Wumpus(Agent):
+    screamed = False
+    pass
+
+
+class Gold(Thing):
+    pass
+
+
+class Pit(Thing):
+    pass
+
+
+class Glitter(Thing):
+    pass
+
+
+class Breeze(Thing):
+    pass
+
+
+class Stench(Thing):
+    pass
+
+
+class Arrow(Thing):
+    pass
