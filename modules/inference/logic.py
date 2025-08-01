@@ -78,12 +78,12 @@ class Clause():
 
     def simplify(self, unit_literals):
         """Simplify the clause by removing literals that are negated in unit literals."""
-        simplified_literals = {
-            lit for lit in self.literals if ~lit not in unit_literals}
-        if len(simplified_literals) == 0:
+        literals = {lit for lit in self.literals
+                    if ~lit not in unit_literals}
+        if len(literals) == 0:
             return Clause()
 
-        return Clause(*simplified_literals)
+        return Clause(*literals)
 
 
 def wumpus(i, j):

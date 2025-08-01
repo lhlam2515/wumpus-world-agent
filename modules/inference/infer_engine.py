@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from itertools import combinations
 from typing import Any
 from .logic import Clause, Literal
 
@@ -14,56 +13,59 @@ class InferEngine(ABC):
 
 
 class DPLLEngine(InferEngine):
-    """DPLL-based inference engine."""
+    """DPLL satisfiable inference engine."""
 
-    def __call__(self, knowledge_base, query: list[Literal]) -> bool:
+    def __call__(self, knowledge_base, query: list[Literal] | list[Clause]) -> bool:
         """Check if a query can be resolved with the knowledge base."""
-        clauses = set([*knowledge_base, Clause(*[~lit for lit in query])])
+        clauses = set([*knowledge_base])
+        if isinstance(query, list) and all(isinstance(q, Literal) for q in query):
+            clauses.add(Clause(*[lit for lit in query]))
+        elif isinstance(query, list) and all(isinstance(q, Clause) for q in query):
+            clauses.update(query)
+        else:
+            raise ValueError("Query must be a list of Literals or Clauses.")
+
         symbols = {lit.name for clause in clauses for lit in clause}
 
-        return not self._dpll(clauses, symbols, set())
+        return self._dpll(clauses, symbols, set())
 
     def _dpll(self, clauses, symbols, model):
         # Remove satisfied clauses
-        clauses = [c for c in clauses if not any(lit in model for lit in c)]
+        unknown_clauses = [c for c in clauses
+                           if not any(lit in model for lit in c)]
         # If every clause is satisfied by the model, return True
-        if not clauses:
+        if len(unknown_clauses) == 0:
             return True
         # If any clause is unsatisfied (empty), return False
-        if any(clause.empty() for clause in clauses):
+        unknown_clauses = map(lambda c: c.simplify(model), unknown_clauses)
+        if any(c.empty() for c in unknown_clauses):
             return False
 
         # Choose a symbol to assign
-        symbol, sign = self._find_pure_symbol(symbols, clauses)
+        symbol, sign = self._find_pure_symbol(symbols, unknown_clauses)
         if symbol and sign is not None:
-            # print(f"Choosing pure symbol: {symbol} with sign {sign}")
-            new_clauses = self._simplify(clauses, Literal(symbol, sign))
-            return self._dpll(new_clauses, symbols - {symbol}, model | {Literal(symbol, sign)})
+            literal = Literal(symbol, sign)
+            return self._dpll(
+                clauses, symbols - {symbol}, model.union({literal})
+            )
 
         # Choose a unit clause
-        symbol, sign = self._find_unit_clause(clauses)
+        symbol, sign = self._find_unit_clause(unknown_clauses, model)
         if symbol and sign is not None:
-            # print(f"Choosing unit clause: {symbol} with sign {sign}")
-            new_clauses = self._simplify(clauses, Literal(symbol, sign))
-            return self._dpll(new_clauses, symbols - {symbol}, model | {Literal(symbol, sign)})
+            literal = Literal(symbol, sign)
+            return self._dpll(
+                clauses, symbols - {symbol}, model.union({literal})
+            )
 
         # If no pure symbol or unit clause, try assigning a arbitrary symbol
         symbol = next(iter(symbols))
         rest = symbols - {symbol}
 
         # Try assigning the symbol as True
-        new_clauses = self._simplify(clauses, Literal(symbol))
-        satisfied = self._dpll(
-            new_clauses, rest, model | {Literal(symbol)})
-        if satisfied:
+        if self._dpll(clauses, rest, model | {Literal(symbol, True)}):
             return True
-        # Try assigning the symbol as False
-        new_clauses = self._simplify(clauses, Literal(symbol, False))
-        satisfied = self._dpll(
-            new_clauses, rest, model | {Literal(symbol, False)})
-        if satisfied:
+        if self._dpll(clauses, rest, model | {Literal(symbol, False)}):
             return True
-        # If neither assignment leads to a solution, return False
         return False
 
     def _find_pure_symbol(self, symbols, clauses):
@@ -78,20 +80,12 @@ class DPLLEngine(InferEngine):
 
         return None, None
 
-    def _find_unit_clause(self, clauses):
+    def _find_unit_clause(self, clauses, model):
         """Find a unit clause in the clauses."""
         for clause in clauses:
-            if len(clause) == 1:  # If the clause has only one literal
-                literal = next(iter(clause))
-                return literal.name, literal.sign
+            clause = clause.simplify(model)
+            if clause.is_unit():
+                unit_literal = clause.unit()
+                return unit_literal.name, unit_literal.sign
 
         return None, None
-
-    def _simplify(self, clauses, lit: Literal):
-        """Simplify the clauses by applying the assignment of a literal."""
-        new_clauses = []
-        for clause in clauses:
-            if lit in clause:  # If the literal is in the clause, it is satisfied
-                continue
-            new_clauses.append(Clause(*[l for l in clause if l != ~lit]))
-        return new_clauses

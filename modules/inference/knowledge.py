@@ -32,7 +32,8 @@ class KnowledgeBase:
         """Add new clauses to the knowledge base."""
         if not all(isinstance(clause, (Literal, Clause)) for clause in clauses):
             raise ValueError(
-                "Unexpected clause type. Must be Literal or Clause.")
+                "Unexpected clause type. Must be Literal or Clause."
+            )
 
         clauses = sorted(clauses, key=lambda c: repr(c))
         for clause in clauses:
@@ -57,14 +58,24 @@ class KnowledgeBase:
 
     def ask_if_true(self, query: list[Literal]):
         """Check if a query can be resolved with the knowledge base."""
-        if all(lit in self.clauses for lit in query):
+        if all(Clause(lit) in self.clauses for lit in query):
             return True
+
+        if any(Clause(~lit) in self.clauses for lit in query):
+            return False
 
         if any(lit.name not in self.__symbols for lit in query):
             return None
 
         from .infer_engine import DPLLEngine
-        return DPLLEngine()(self, query)
+        sat = DPLLEngine()(self, [~lit for lit in query])
+        self.tell(*[Clause(lit) for lit in query]) if not sat else None
+        return not sat
+
+    def ask_if_inconsistent(self, query: list[Clause]):
+        """Check if a query is inconsistent with the knowledge base."""
+        from .infer_engine import DPLLEngine
+        return not DPLLEngine()(self, query)
 
     def refresh(self):
         """Refresh the knowledge base by removing redundant clauses."""
@@ -85,11 +96,11 @@ class KnowledgeBase:
         for clause in self.clauses:
             simplified = clause.simplify(unit_literals)
             if simplified.empty():
-                raise ValueError("Knowledge base is inconsistent.")
+                continue  # Ignore at this time
             new_clauses.add(simplified)
 
         # If the new clauses are the same as the old ones, do nothing
-        if new_clauses.issubset(self.clauses):
+        if self.clauses == new_clauses:
             return
 
         # Otherwise, update the knowledge base with the new clauses
@@ -117,7 +128,7 @@ class KnowledgeBase:
             elif percept == 'glitter':
                 clauses.add(glitter() if value else ~glitter())
             elif percept == 'scream' and isinstance(value, tuple):
-                clauses.add(wumpus(*value))
+                clauses.update([~wumpus(*value), ~pit(*value)])
 
         # Add axioms for adjacent cells based on the percepts
         clauses.add(~wumpus(i, j) | ~pit(i, j))
