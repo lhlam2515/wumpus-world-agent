@@ -51,7 +51,8 @@ class Clause():
         return False
 
     def __invert__(self):
-        return [Clause(~lit) for lit in self.literals]
+        negated = [Clause(~lit) for lit in self.literals]
+        return negated[0] if len(negated) == 1 else negated
 
     def __or__(self, other):
         if isinstance(other, Literal):
@@ -76,12 +77,15 @@ class Clause():
             return next(iter(self.literals))
         raise ValueError("Clause is not a unit clause")
 
-    def simplify(self, unit_literals):
-        """Simplify the clause by removing literals that are negated in unit literals."""
-        literals = {lit for lit in self.literals
-                    if ~lit not in unit_literals}
-        if len(literals) == 0:
-            return Clause()
+    def simplify(self, model):
+        """Simplify the clause based on the current model."""
+        literals = []
+        for lit in self.literals:
+            if lit in model:
+                return None  # This clause is satisfied by the model
+            if ~lit in model:
+                continue  # This literal is false in the model
+            literals.append(lit)
 
         return Clause(*literals)
 

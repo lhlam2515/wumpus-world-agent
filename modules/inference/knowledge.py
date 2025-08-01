@@ -9,8 +9,9 @@ class KnowledgeBase:
         self.n_wumpus = k
 
         # Initialize the knowledge base with clauses
-        self.clauses: set[Clause] = set(~(wumpus(0, 0) | pit(0, 0)))
-        self.__symbols = set()  # To keep track of symbols
+        self.clauses: set[Clause] = set(
+            ~(wumpus(0, 0) | pit(0, 0) | glitter())
+        )
 
     def __iter__(self):
         """Iterate over the clauses in the knowledge base."""
@@ -40,11 +41,12 @@ class KnowledgeBase:
             new = Clause(clause) if isinstance(clause, Literal) else clause
             # Remove negated clauses if they already exist,
             # to avoid contradictions due to the dynamic information
-            if all(c in self.clauses for c in ~new):
+            if isinstance(~new, Clause):
+                self.clauses.discard(~new)  # type: ignore
+            elif all(c in self.clauses for c in ~new):
                 self.clauses.difference_update(set(~new))
 
             self.clauses = self.clauses.union({new})
-            self.__symbols.update([lit.name for lit in new.literals])
 
         self.refresh()
 
@@ -53,7 +55,17 @@ class KnowledgeBase:
         # 1) Create the clauses based on the percepts
         clauses = self._make_percept_clauses(i, j, percepts)
 
-        # 2) Add the clauses to the knowledge base
+        # 2) Add the Breeze and Stench axioms for the current cell
+        clauses.update(self._breeze_axioms(i, j))
+        clauses.update(self._stench_axioms(i, j))
+
+        # 3) Add the clauses for adjacent cells
+        for x, y in self._adjacent(i, j):
+            clauses.update(self._breeze_axioms(x, y))
+            clauses.update(self._stench_axioms(x, y))
+            clauses.add(~wumpus(x, y) | ~pit(x, y))
+
+        # 4) Add the clauses to the knowledge base
         self.tell(*clauses)
 
     def ask_if_true(self, query: list[Literal]):
@@ -64,40 +76,43 @@ class KnowledgeBase:
         if any(Clause(~lit) in self.clauses for lit in query):
             return False
 
-        if any(lit.name not in self.__symbols for lit in query):
-            return None
-
         from .infer_engine import DPLLEngine
-        sat = DPLLEngine()(self, [~lit for lit in query])
+        sat = DPLLEngine()(self, Clause(*[~lit for lit in query]))
         self.tell(*[Clause(lit) for lit in query]) if not sat else None
         return not sat
 
     def ask_if_inconsistent(self, query: list[Clause]):
         """Check if a query is inconsistent with the knowledge base."""
+        if all(c in self.clauses for c in query):
+            return False  # The query is consistent with the knowledge base
+
+        negated_clauses = []
+        for clause in query:
+            if clause.is_unit():
+                negated_clauses.append(~clause)
+            else:
+                negated_clauses.extend(~clause)
+        if any(clause in self.clauses for clause in negated_clauses):
+            return True
+
         from .infer_engine import DPLLEngine
         return not DPLLEngine()(self, query)
 
     def refresh(self):
         """Refresh the knowledge base by removing redundant clauses."""
         # Get unit clauses as a set of unit literals
-        unit_literals = {c.unit() for c in self.clauses if c.is_unit()}
-        if not unit_literals:
+        model = {c.unit() for c in self.clauses if c.is_unit()}
+        if not model:  # No unit clauses to simplify
             return
 
-        # Remove clauses that contain unit literals
-        clauses_to_remove = set()
-        for clause in self.clauses:
-            if not clause.is_unit() and any(lit in clause for lit in unit_literals):
-                clauses_to_remove.add(clause)
-        self.clauses -= clauses_to_remove
-
-        # Simplify the clauses by removing the unit literals
+        # Simplify the clauses based on the current model
         new_clauses = set()
         for clause in self.clauses:
-            simplified = clause.simplify(unit_literals)
-            if simplified.empty():
-                continue  # Ignore at this time
-            new_clauses.add(simplified)
+            simplified_clause = clause.simplify(model)
+            if simplified_clause is None or simplified_clause.empty():
+                continue
+            new_clauses.add(simplified_clause)
+        new_clauses = new_clauses.union({Clause(lit) for lit in model})
 
         # If the new clauses are the same as the old ones, do nothing
         if self.clauses == new_clauses:
@@ -121,21 +136,12 @@ class KnowledgeBase:
         for percept, value in percepts.items():
             if percept == 'breeze':
                 clauses.add(breeze(i, j) if value else ~breeze(i, j))
-                clauses.update(self._breeze_axioms(i, j))
             elif percept == 'stench':
                 clauses.add(stench(i, j) if value else ~stench(i, j))
-                clauses.update(self._stench_axioms(i, j))
             elif percept == 'glitter':
                 clauses.add(glitter() if value else ~glitter())
             elif percept == 'scream' and isinstance(value, tuple):
                 clauses.update([~wumpus(*value), ~pit(*value)])
-
-        # Add axioms for adjacent cells based on the percepts
-        clauses.add(~wumpus(i, j) | ~pit(i, j))
-        for ni, nj in self._adjacent(i, j):
-            clauses.update(self._breeze_axioms(ni, nj))
-            clauses.update(self._stench_axioms(ni, nj))
-            clauses.add(~wumpus(ni, nj) | ~pit(ni, nj))
 
         return clauses
 

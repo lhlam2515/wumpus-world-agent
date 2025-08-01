@@ -15,11 +15,11 @@ class InferEngine(ABC):
 class DPLLEngine(InferEngine):
     """DPLL satisfiable inference engine."""
 
-    def __call__(self, knowledge_base, query: list[Literal] | list[Clause]) -> bool:
+    def __call__(self, knowledge_base, query: Clause | list[Clause]) -> bool:
         """Check if a query can be resolved with the knowledge base."""
         clauses = set([*knowledge_base])
-        if isinstance(query, list) and all(isinstance(q, Literal) for q in query):
-            clauses.add(Clause(*[lit for lit in query]))
+        if isinstance(query, Clause):
+            clauses.add(query)
         elif isinstance(query, list) and all(isinstance(q, Clause) for q in query):
             clauses.update(query)
         else:
@@ -50,7 +50,7 @@ class DPLLEngine(InferEngine):
             )
 
         # Choose a unit clause
-        symbol, sign = self._find_unit_clause(unknown_clauses, model)
+        symbol, sign = self._find_unit_clause(clauses, model)
         if symbol and sign is not None:
             literal = Literal(symbol, sign)
             return self._dpll(
@@ -84,8 +84,7 @@ class DPLLEngine(InferEngine):
         """Find a unit clause in the clauses."""
         for clause in clauses:
             clause = clause.simplify(model)
-            if clause.is_unit():
-                unit_literal = clause.unit()
-                return unit_literal.name, unit_literal.sign
+            if clause and clause.is_unit():
+                return clause.unit().name, clause.unit().sign
 
         return None, None
