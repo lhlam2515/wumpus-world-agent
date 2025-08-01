@@ -14,39 +14,135 @@ class WumpusWorld(Environment):
 
     def init_world(self, agent_program, k_wumpus, pit_probability):
         """Spawn agents, wumpuses, and pits in the environment."""
+        pit_locations = []
+        wumpus_locations = []
 
-        # TODO: Implement the logic to spawn wumpuses and pits in the environment.
+        # Spawn pits in the environment
+        for x, y in product(range(self.width), repeat=2):
+            if get_probability() > pit_probability:
+                continue
 
-        # TODO: Implement the logic to spawn gold in the environment.
+            if (x, y) == (0, 0):
+                continue  # Don't place pits at the starting location
 
-        # TODO: Implement the logic to spawn the agent in the environment.
-        # * If agent_program is a list, spawn multiple agents. Otherwise, spawn a single agent.
+            self.add_thing(Pit(), (x, y))
+            pit_locations.append((x, y))
+
+        # Spawn wumpuses in the environment
+        while len(wumpus_locations) < k_wumpus:
+            location = self.random_location(exclude=[(0, 0), *pit_locations])
+            if self.add_thing(Wumpus(), location):
+                wumpus_locations.append(location)
+
+        # Spawn gold in the environment.
+        gold_location = self.random_location(
+            exclude=[(0, 0), *pit_locations, *wumpus_locations])
+        self.add_thing(Gold(), gold_location)
+
+        # Spawn the agent in the environment.
+        if isinstance(agent_program, list):
+            for agent in agent_program:
+                self.add_thing(agent, (0, 0), replace=True)
+        else:
+            self.add_thing(agent_program, (0, 0), replace=True)
 
     def get_world(self):
         """Return the items in the Wumpus World."""
-        # TODO: Implement the logic to return the items in the Wumpus World.
-        # * This should be a grid-like structure representing the Wumpus World.
-        # * Each cell should contain the items present in that cell.
-        raise NotImplementedError
+        world = [[[] for _ in range(self._x_start, self._x_end + 1)]
+                 for _ in range(self._y_start, self._y_end + 1)]
+        for thing in self.things:
+            y, x = thing.location
+            if self.is_inbounds((x, y)):
+                world[x - self._x_start][y - self._y_start].append(thing)
+        return reversed(world)
 
     def percept(self, agent):
         """Get the percept for the given agent."""
-        # TODO: Implement the logic to get the percept for the agent.
-        raise NotImplementedError("percept() is not implemented yet.")
+        things_near = self.things_near(agent.location)
+
+        percepts: dict[str, bool | tuple[int, int]] = {
+            'breeze': any(isinstance(thing, Pit) for thing in things_near),
+            'stench': any(isinstance(thing, Wumpus) and thing.alive for thing in things_near),
+        }
+
+        # Check for bump (if agent bumped into a wall)
+        percepts['bump'] = agent.bump if hasattr(agent, 'bump') else False
+
+        # Check for glitter (gold) only at the agent's location
+        if any(self._list_things_at(agent.location, Gold)):
+            percepts['glitter'] = True
+
+        # Check for scream (wumpus death)
+        wumpuses = [
+            thing for thing in self.things if isinstance(thing, Wumpus)
+        ]
+        for wumpus in wumpuses:
+            if not wumpus.alive and not wumpus.screamed:
+                percepts['scream'] = wumpus.location  # type: ignore
+                wumpus.screamed = True
+
+        return percepts
 
     def execute_action(self, agent, action):
         """Execute the given action for the specified agent."""
-        # TODO: Implement the logic to execute the action for the agent.
-        # * This should update the agent's state and the environment accordingly.
-        raise NotImplementedError("execute_action() is not implemented yet.")
+        if isinstance(agent, Explorer) and self.in_danger(agent):
+            return
+
+        agent.bump = False
+        if action == Action.FORWARD:
+            new_location = Action.forward(agent.position).location
+            agent.bump = self.move_to(agent, new_location)
+            agent.performance -= 1
+        elif action == Action.TURN_LEFT:
+            agent.position = Action.turn_left(agent.position)
+            agent.performance -= 1
+        elif action == Action.TURN_RIGHT:
+            agent.position = Action.turn_right(agent.position)
+            agent.performance -= 1
+        elif action == Action.GRAB:  # Only triggered when gold at agent's location
+            if self._some_things_at(agent.position.location, Gold):
+                agent.grab_gold(Gold())
+            agent.performance += 10 if agent.has_gold else 0
+        elif action == Action.CLIMB:
+            if agent.location == (0, 0):
+                agent.performance += 1000 if agent.has_gold else 0
+                self.remove_thing(agent)
+        elif action == Action.SHOOT:
+            if agent.has_arrow:
+                arrow_travel = Action.forward(agent.position)
+                while self.is_inbounds(arrow_travel.location):
+                    wumpus = self._list_things_at(
+                        arrow_travel.location, Wumpus
+                    )
+                    if wumpus:
+                        wumpus[0].alive = False  # type: ignore
+                        print(
+                            f"Wumpus at {arrow_travel.location} has been killed!"
+                        )
+                        break
+                    arrow_travel = Action.forward(arrow_travel)
+                agent.has_arrow = False
+                agent.performance -= 10
 
     def in_danger(self, agent):
         """Check if Explorer is in danger, if he is, kill him."""
-        # TODO: Implement the logic to check if the agent is in danger.
-        raise NotImplementedError("in_danger() is not implemented yet.")
+        things_at_location = self._list_things_at(agent.position.location)
+        for thing in things_at_location:
+            if isinstance(thing, Pit) or (isinstance(thing, Wumpus) and thing.alive):
+                agent.alive, agent.killed_by = False, thing.__class__.__name__
+                agent.performance -= 1000
+                return True
+        return False
 
     def is_done(self):
         """Check if the environment is in a terminal state."""
-        # TODO: Implement the logic to check if the environment is in a terminal state.
-        # * This is over when all agents are dead or climbed out of the cave.
-        raise NotImplementedError("is_done() is not implemented yet.")
+        explorer = [
+            agent for agent in self.agents if isinstance(agent, Explorer)
+        ]
+        # Check if all explorers are dead or have climbed out
+        if explorer:
+            if all(self.in_danger(agent) for agent in explorer):
+                return True
+            else:
+                return False
+        return True  # No explorers left, environment is done

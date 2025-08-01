@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 from random import randint
+
+from modules.utils import Action
 from .entity import Agent, Thing
 
 
@@ -51,8 +53,7 @@ class Environment(ABC):
                 actions.append(None)
 
         for agent, action in zip(self.agents, actions):
-            if action is not None:
-                print(f"Agent {agent} performed action: {action}")
+            if action is not Action.NOOP:
                 self.execute_action(agent, action)
 
     def is_inbounds(self, location):
@@ -68,11 +69,14 @@ class Environment(ABC):
             if exclude is None or (x, y) not in exclude:
                 return x, y
 
-    def add_thing(self, thing, location):
+    def add_thing(self, thing, location, replace=False):
         """Add a thing to the environment at the specified location."""
         if not self.is_inbounds(location):
             return False
         thing.location = location
+
+        if not replace and self._some_things_at(location):
+            return False
 
         self.things.append(thing)
         if isinstance(thing, Agent):
