@@ -1,12 +1,14 @@
+from .infer_engine import DPLLEngine, InferEngine
 from .logic import *
 
 
 class KnowledgeBase:
     """Knowledge Base for Wumpus World."""
 
-    def __init__(self, size=8, k=2):
+    def __init__(self, size=8, k=2, infer_engine: type[InferEngine] = DPLLEngine):
         self.size = size
         self.n_wumpus = k
+        self.infer_engine = infer_engine
 
         # Initialize the knowledge base with clauses
         self.clauses: set[Clause] = set(
@@ -76,8 +78,7 @@ class KnowledgeBase:
         if any(Clause(~lit) in self.clauses for lit in query):
             return False
 
-        from .infer_engine import DPLLEngine
-        sat = DPLLEngine()(self, Clause(*[~lit for lit in query]))
+        sat = self.infer_engine()(self, Clause(*[~lit for lit in query]))
         self.tell(*[Clause(lit) for lit in query]) if not sat else None
         return not sat
 
@@ -95,8 +96,7 @@ class KnowledgeBase:
         if any(clause in self.clauses for clause in negated_clauses):
             return True
 
-        from .infer_engine import DPLLEngine
-        return not DPLLEngine()(self, query)
+        return not self.infer_engine()(self, query)
 
     def refresh(self):
         """Refresh the knowledge base by removing redundant clauses."""

@@ -7,7 +7,7 @@ class InferEngine(ABC):
     """Base class for inference engines."""
 
     @abstractmethod
-    def __call__(self, knowledge_base, query: list[Literal]) -> Any:
+    def __call__(self, knowledge_base, query: Clause | list[Clause]) -> Any:
         """Check if a query can be resolved with the knowledge base."""
         raise NotImplementedError("Subclasses must implement this method.")
 
