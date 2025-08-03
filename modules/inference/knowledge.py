@@ -1,14 +1,11 @@
-from .infer_engine import DPLLEngine, InferEngine
 from .logic import *
 
 
 class KnowledgeBase:
     """Knowledge Base for Wumpus World."""
 
-    def __init__(self, size=8, k=2, infer_engine: type[InferEngine] = DPLLEngine):
+    def __init__(self, size=8):
         self.size = size
-        self.n_wumpus = k
-        self.infer_engine = infer_engine
 
         # Initialize the knowledge base with clauses
         self.clauses: set[Clause] = set(
@@ -50,7 +47,7 @@ class KnowledgeBase:
 
             self.clauses = self.clauses.union({new})
 
-        self.refresh()
+        self.infer()
 
     def tell_percept(self, i, j, percepts: dict[str, bool | tuple[int, int]]):
         """Tell the knowledge base about a percept at (i, j)."""
@@ -75,37 +72,19 @@ class KnowledgeBase:
         if all(Clause(lit) in self.clauses for lit in query):
             return True
 
-        if any(Clause(~lit) in self.clauses for lit in query):
+        if any(~Clause(lit) in self.clauses for lit in query):
             return False
 
-        sat = self.infer_engine()(self, Clause(*[~lit for lit in query]))
-        self.tell(*[Clause(lit) for lit in query]) if not sat else None
-        return not sat
+        return False
 
-    def ask_if_inconsistent(self, query: list[Clause]):
-        """Check if a query is inconsistent with the knowledge base."""
-        if all(c in self.clauses for c in query):
-            return False  # The query is consistent with the knowledge base
-
-        negated_clauses = []
-        for clause in query:
-            if clause.is_unit():
-                negated_clauses.append(~clause)
-            else:
-                negated_clauses.extend(~clause)
-        if any(clause in self.clauses for clause in negated_clauses):
-            return True
-
-        return not self.infer_engine()(self, query)
-
-    def refresh(self):
-        """Refresh the knowledge base by removing redundant clauses."""
+    def infer(self):
+        """Infer new knowledge based on the current knowledge base."""
         # Get unit clauses as a set of unit literals
         model = {c.unit() for c in self.clauses if c.is_unit()}
         if not model:  # No unit clauses to simplify
             return
 
-        # Simplify the clauses based on the current model
+        # Simplify the knowledge base with the current model
         new_clauses = set()
         for clause in self.clauses:
             simplified_clause = clause.simplify(model)
@@ -120,7 +99,7 @@ class KnowledgeBase:
 
         # Otherwise, update the knowledge base with the new clauses
         self.clauses = new_clauses
-        self.refresh()
+        self.infer()
 
     def _adjacent(self, i, j):
         """Generate adjacent cells for a given cell (i, j)."""
