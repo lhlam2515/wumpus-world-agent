@@ -9,7 +9,7 @@ class KnowledgeBase:
 
         # Initialize the knowledge base with clauses
         self.clauses: set[Clause] = set(
-            ~(wumpus(0, 0) | pit(0, 0) | glitter())
+            ~(wumpus(0, 0) | pit(0, 0) | glitter() | scream())
         )
 
     def __iter__(self):
@@ -124,6 +124,8 @@ class KnowledgeBase:
                 clauses.add(stench(i, j) if value else ~stench(i, j))
             elif percept == 'glitter':
                 clauses.add(glitter() if value else ~glitter())
+            elif percept == 'scream':
+                clauses.add(scream() if value else ~scream())
 
         return clauses
 

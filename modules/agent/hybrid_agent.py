@@ -2,7 +2,7 @@ from itertools import product
 from modules.inference.knowledge import KnowledgeBase
 from modules.planning.bayes_net import BayesNet, BayesNode, elimination_ask
 from modules.utils import Orientation, Position, Action
-from modules.inference import wumpus, pit, glitter, breeze, stench
+from modules.inference import wumpus, pit,  breeze, stench, glitter, scream
 from modules.environment import Explorer
 
 
@@ -109,6 +109,12 @@ class HybridAgent(Explorer):
             temp = self.plan_shot(
                 self.position, self.wumpus_positions, self.safe_positions,
                 sub_positions=self.stench_positions
+            )
+            self.plan.extend(temp)
+
+        if len(self.plan) == 0 and self.kb.ask_if_true([scream()]):
+            temp = self.plan_route(
+                self.position, self.stench_positions, self.safe_positions
             )
             self.plan.extend(temp)
 
