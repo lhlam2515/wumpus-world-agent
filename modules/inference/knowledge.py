@@ -35,6 +35,7 @@ class KnowledgeBase:
                 "Unexpected clause type. Must be Literal or Clause."
             )
 
+        unit_clauses = set()
         clauses = sorted(clauses, key=lambda c: repr(c))
         for clause in clauses:
             new = Clause(clause) if isinstance(clause, Literal) else clause
@@ -42,10 +43,14 @@ class KnowledgeBase:
             # to avoid contradictions due to the dynamic information
             if isinstance(~new, Clause):
                 self.clauses.discard(~new)  # type: ignore
+                unit_clauses.add(new)
             elif all(c in self.clauses for c in ~new):
                 self.clauses.difference_update(set(~new))
 
             self.clauses = self.clauses.union({new})
+        # Make sure the unit clauses that replaced negated clauses are added
+        # to the knowledge base, so they can be used for inference.
+        self.clauses = self.clauses.union(unit_clauses)
 
         self.infer()
 
