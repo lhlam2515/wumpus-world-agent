@@ -60,7 +60,7 @@ class WumpusWorld(Environment):
         """Get the percept for the given agent."""
         things_near = self.things_near(agent.location)
 
-        percepts: dict[str, bool | tuple[int, int]] = {
+        percepts: dict[str, bool] = {
             'breeze': any(isinstance(thing, Pit) for thing in things_near),
             'stench': any(isinstance(thing, Wumpus) and thing.alive for thing in things_near),
         }
@@ -78,7 +78,7 @@ class WumpusWorld(Environment):
         ]
         for wumpus in wumpuses:
             if not wumpus.alive and not wumpus.screamed:
-                percepts['scream'] = wumpus.location  # type: ignore
+                percepts['scream'] = True
                 wumpus.screamed = True
 
         return percepts

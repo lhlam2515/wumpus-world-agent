@@ -54,7 +54,7 @@ class KnowledgeBase:
 
         self.infer()
 
-    def tell_percept(self, i, j, percepts: dict[str, bool | tuple[int, int]]):
+    def tell_percept(self, i, j, percepts: dict[str, bool]):
         """Tell the knowledge base about a percept at (i, j)."""
         # 1) Create the clauses based on the percepts
         clauses = self._make_percept_clauses(i, j, percepts)
@@ -113,7 +113,7 @@ class KnowledgeBase:
             if 0 <= ni < self.size and 0 <= nj < self.size:
                 yield (ni, nj)
 
-    def _make_percept_clauses(self, i, j, percepts: dict[str, bool | tuple[int, int]]):
+    def _make_percept_clauses(self, i, j, percepts: dict[str, bool]):
         """Generate clauses based on percepts for a given cell (i, j)."""
         clauses = set()
 
@@ -124,8 +124,6 @@ class KnowledgeBase:
                 clauses.add(stench(i, j) if value else ~stench(i, j))
             elif percept == 'glitter':
                 clauses.add(glitter() if value else ~glitter())
-            elif percept == 'scream' and isinstance(value, tuple):
-                clauses.update([~wumpus(*value), ~pit(*value)])
 
         return clauses
 
