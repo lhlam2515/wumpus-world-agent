@@ -107,7 +107,8 @@ class HybridAgent(Explorer):
 
         if len(self.plan) == 0 and self.has_arrow:
             temp = self.plan_shot(
-                self.position, self.wumpus_positions, self.safe_positions
+                self.position, self.wumpus_positions, self.safe_positions,
+                sub_positions=self.stench_positions
             )
             self.plan.extend(temp)
 
@@ -130,7 +131,7 @@ class HybridAgent(Explorer):
         planner = RoutePlanner(current, goals, allowed, self.size)
         return planner.plan_route()
 
-    def plan_shot(self, current, wumpus_positions, allowed):
+    def plan_shot(self, current, wumpus_positions, allowed, sub_positions=None):
         """Plan a shot at the wumpus positions."""
         shoot_positions = []
 
@@ -146,7 +147,14 @@ class HybridAgent(Explorer):
                 if p > y and (x, p) in allowed:
                     shoot_positions.append(Position(x, p, Orientation.SOUTH))
 
-        if len(shoot_positions) == 0:
+        if not shoot_positions and sub_positions:
+            for x, y in sub_positions:
+                shoot_positions.append(Position(x, y, Orientation.NORTH))
+                shoot_positions.append(Position(x, y, Orientation.SOUTH))
+                shoot_positions.append(Position(x, y, Orientation.WEST))
+                shoot_positions.append(Position(x, y, Orientation.EAST))
+
+        if not shoot_positions:
             return []
 
         return self.plan_route(current, shoot_positions, allowed) + [Action.SHOOT]
