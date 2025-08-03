@@ -1,40 +1,66 @@
 from itertools import product
 from modules.inference.knowledge import KnowledgeBase
-from modules.inference.logic import Clause
+from modules.planning.bayes_net import BayesNet, BayesNode, elimination_ask
 from modules.utils import Orientation, Position, Action
-from modules.inference import wumpus, pit, glitter
+from modules.inference import wumpus, pit, glitter, breeze, stench
 from modules.environment import Explorer
 
 
 class HybridAgent(Explorer):
-    def __init__(self, size=8, k_wumpus=2, pit_prob=0.2, **kwargs):
+    def __init__(self, size=8, k_wumpus=2, pit_prob=0.2):
         super().__init__(self.execute)
         self.size = size
         self.k_wumpus = k_wumpus
         self.pit_prob = pit_prob
-        self.kb = KnowledgeBase(size, k_wumpus, **kwargs)
+        self.kb = KnowledgeBase(size)
         self.plan = []
         self.visited = set()
         self.frontier = set()
-        self.safe_points = set()
 
-    def get_safe_positions(self):
+    @property
+    def safe_positions(self):
         """Get the safe positions in the knowledge base."""
-        for pos in self.frontier - self.safe_points:
+        positions = set()
+        for pos in self.visited | self.frontier:
             if self.kb.ask_if_true([~wumpus(*pos), ~pit(*pos)]):
-                yield pos
+                positions.add(pos)
+        return positions
 
-    def get_wumpus_positions(self):
+    @property
+    def wumpus_positions(self):
         """Get the positions of the wumpuses."""
-        for pos in self.frontier - self.safe_points:
+        positions = set()
+        for pos in self.frontier - self.safe_positions:
             if self.kb.ask_if_true([wumpus(*pos)]):
-                yield pos
+                positions.add(pos)
+        return positions
 
-    def get_pit_positions(self):
+    @property
+    def pit_positions(self):
         """Get the positions of the pits."""
-        for pos in self.frontier - self.safe_points:
+        positions = set()
+        for pos in self.frontier - self.safe_positions:
             if self.kb.ask_if_true([pit(*pos)]):
-                yield pos
+                positions.add(pos)
+        return positions
+
+    @property
+    def breeze_positions(self):
+        """Get the positions of the breezes."""
+        positions = set()
+        for pos in self.visited:
+            if self.kb.ask_if_true([breeze(*pos)]):
+                positions.add(pos)
+        return positions
+
+    @property
+    def stench_positions(self):
+        """Get the positions of the stenches."""
+        positions = set()
+        for pos in self.visited:
+            if self.kb.ask_if_true([stench(*pos)]):
+                positions.add(pos)
+        return positions
 
     def _neighbors(self, i, j):
         """Get the neighboring cells of (i, j)."""
@@ -54,44 +80,40 @@ class HybridAgent(Explorer):
         self.frontier.update(self._neighbors(x, y))
         self.frontier.difference_update(self.visited)
 
-        self.safe_points.add((x, y))
-        self.safe_points.update(self.get_safe_positions())
-
         if not self.has_gold and self.kb.ask_if_true([glitter()]):
             goals = (0, 0)
             self.plan.append(Action.GRAB) if not self.has_gold else None
-            actions = self.plan_route(self.position, goals, self.safe_points)
-            self.plan.extend(actions)
+            temp = self.plan_route(self.position, goals, self.safe_positions)
+            self.plan.extend(temp)
             self.plan.append(Action.CLIMB)
 
         if len(self.plan) == 0:
-            unvisited_safe = self.frontier.intersection(self.safe_points)
+            unvisited_safe = self.frontier.intersection(self.safe_positions)
 
             temp = self.plan_route(
-                self.position, unvisited_safe, self.safe_points)
+                self.position, unvisited_safe, self.safe_positions
+            )
             self.plan.extend(temp)
 
         if len(self.plan) == 0:
-            uncertain_positions = self.frontier - self.safe_points
-            uncertain_positions -= set(self.get_wumpus_positions())
-            uncertain_positions -= set(self.get_pit_positions())
+            uncertain_positions = set(self.frontier) - set(self.safe_positions)
+            uncertain_positions -= self.pit_positions
+            uncertain_positions -= self.wumpus_positions
 
             temp = self.plan_uncertain(
-                self.position, uncertain_positions, self.safe_points
+                self.position, uncertain_positions, self.safe_positions
             )
             self.plan.extend(temp)
 
         if len(self.plan) == 0 and self.has_arrow:
-            wumpus_positions = set(self.get_wumpus_positions())
-
             temp = self.plan_shot(
-                self.position, wumpus_positions, self.safe_points
+                self.position, self.wumpus_positions, self.safe_positions
             )
             self.plan.extend(temp)
 
         if len(self.plan) == 0:
             start = (0, 0)
-            temp = self.plan_route(self.position, start, self.safe_points)
+            temp = self.plan_route(self.position, start, self.safe_positions)
             self.plan.extend(temp)
             self.plan.append(Action.CLIMB)
 
@@ -143,65 +165,16 @@ class HybridAgent(Explorer):
 
         return self.plan_route(current, low_risk_positions, allowed)
 
-    def _compute_entity_probability(self, uncertain_positions, entity_func, use_probabilistic=True, max_count=None):
-        """
-        Generic method to compute probability of entities (pits or wumpuses) in uncertain positions.
-
-        Args:
-            uncertain_positions: Set of positions to evaluate
-            entity_func: Function (pit or wumpus) to create logical clauses
-            use_probabilistic: If True, use probabilistic weighting; if False, use uniform weighting
-            max_count: Maximum number of entities allowed (e.g., k_wumpus for wumpuses)
-        """
-        cells = [pos for pos in uncertain_positions
-                 if not self.kb.ask_if_true([~entity_func(*pos)])]
-
-        if not cells:
-            return {}
-
-        n = len(cells)
-        total_weight = 0.0
-        entity_weight = {cell: 0.0 for cell in cells}
-
-        for config in product([False, True], repeat=n):
-            # Skip configurations that exceed maximum count constraint
-            if max_count is not None and sum(config) > max_count:
-                continue
-
-            # Create query for this configuration
-            query = [Clause(entity_func(*cell)) if val else Clause(~entity_func(*cell))
-                     for cell, val in zip(cells, config)]
-
-            if self.kb.ask_if_inconsistent(query):
-                continue
-
-            # Calculate weight for this configuration
-            if use_probabilistic:
-                weight = 1.0
-                for val in config:
-                    weight *= self.pit_prob if val else (1 - self.pit_prob)
-            else:
-                weight = 1.0
-
-            total_weight += weight
-            for i, val in enumerate(config):
-                entity_weight[cells[i]] += weight if val else 0.0
-
-        if total_weight == 0.0:
-            return {cell: 0.0 for cell in cells}
-
-        return {cell: entity_weight[cell] / total_weight for cell in cells}
-
     def _compute_pit_probability(self, uncertain_positions):
         """Compute the probability of pits in uncertain positions."""
         return self._compute_entity_probability(
-            uncertain_positions, pit, use_probabilistic=True
+            uncertain_positions, pit, self.pit_prob
         )
 
     def _compute_wumpus_probability(self, uncertain_positions):
         """Compute the probability of wumpuses in uncertain positions."""
         return self._compute_entity_probability(
-            uncertain_positions, wumpus, use_probabilistic=False, max_count=self.k_wumpus
+            uncertain_positions, wumpus, self.k_wumpus / self.size**2
         )
 
     def _filter_low_risk_positions(self, risk_positions, pit_prob, wumpus_prob):
@@ -223,7 +196,71 @@ class HybridAgent(Explorer):
             return []
 
         # Return all positions that have the minimum risk
+        import math
         lowest_risk_positions = [
-            pos for pos, risk in position_risks.items() if risk == min_risk]
+            pos for pos, risk in position_risks.items()
+            if math.isclose(risk, min_risk)
+        ]
 
         return lowest_risk_positions
+
+    def _compute_entity_probability(self, positions, entity_func, entity_prob):
+        """Compute the probability of entities in uncertain positions."""
+        entity_pos = self.pit_positions if entity_func.__name__ == "pit" else self.wumpus_positions
+        percept_func = breeze if entity_func.__name__ == "pit" else stench
+        percept_pos = self.breeze_positions if percept_func.__name__ == "breeze" else self.stench_positions
+
+        cells = positions | entity_pos
+        if not cells:
+            return {}
+
+        # Create BayesNet for entities
+        bayes_net = BayesNet()
+        for cell in cells:
+            node = BayesNode(entity_func(*cell).name, [], entity_prob)
+            bayes_net.add_node(node)
+
+        evidence = {}
+
+        # Add percept nodes to the BayesNet
+        known_percepts = map(
+            lambda pos: percept_func(*pos).name, percept_pos
+        )
+        for node in self._make_bayes_node(known_percepts, cells, entity_func):
+            bayes_net.add_node(node)
+            evidence[node.variable] = True
+
+        # Add known entities to the BayesNet
+        known_entities = map(
+            lambda pos: entity_func(*pos).name, entity_pos
+        )
+        for node in self._make_bayes_node(known_entities, percept_pos, percept_func, any=False):
+            bayes_net.add_node(node)
+            evidence[node.variable] = True
+
+        results = {}
+        for cell in cells - entity_pos:
+            var = entity_func(*cell).name
+            post = elimination_ask(var, evidence, bayes_net)
+            results[cell] = post[True]
+        return results
+
+    def _make_bayes_node(self, variables, frontier, entity_func, **kwargs):
+        nodes = []
+        func = any if kwargs.get("any", True) else all
+
+        for var in variables:
+            parents = []
+            _, x, y = var.split("_")
+            for cell in self._neighbors(int(x), int(y)):
+                if cell in frontier:
+                    parents.append(entity_func(*cell).name)
+            if not parents:
+                continue  # Skip if no parents
+            # Build CPT: if Percept is true, then entity is likely present
+            cpt = {}
+            for combo in product([True, False], repeat=len(parents)):
+                cpt[combo] = func(combo)
+            nodes.append(BayesNode(var, parents, cpt))
+
+        return nodes
