@@ -50,9 +50,10 @@ class Environment(ABC):
             if agent.alive:
                 actions.append(agent.program(self.percept(agent)))
             else:
-                actions.append(None)
+                actions.append(Action.NOOP)
 
-        for agent, action in zip(self.agents, actions):
+        agents = [*self.agents]
+        for agent, action in zip(agents, actions):
             if action is not Action.NOOP:
                 self.execute_action(agent, action)
 

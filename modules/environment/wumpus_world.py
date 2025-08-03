@@ -141,7 +141,7 @@ class WumpusWorld(Environment):
         ]
         # Check if all explorers are dead or have climbed out
         if explorer:
-            if all(self.in_danger(agent) for agent in explorer):
+            if all(self.in_danger(agent) or not agent.alive for agent in explorer):
                 return True
             else:
                 return False
