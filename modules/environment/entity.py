@@ -17,9 +17,15 @@ class Agent(Thing):
         self.performance = 0
 
         if program is None or not isinstance(program, Callable):
-            self.program = lambda percept: Action.NOOP
+            self.program = lambda percept, time: Action.NOOP
         else:
             self.program = program
+
+    def __repr__(self):
+        if self.alive:
+            return super().__repr__()
+        else:
+            return f"#{super().__repr__()}"
 
 
 class Explorer(Agent):
@@ -55,6 +61,21 @@ class Explorer(Agent):
 class Wumpus(Agent):
     screamed = False
     pass
+
+
+class SmartWumpus(Wumpus):
+    def __init__(self):
+        super().__init__(self.execute)
+
+    def execute(self, percept, time):
+        """Smart Wumpus action based on the percept."""
+        if percept.get("explorer", False):
+            return Action.KILL
+
+        if time > 0 and time % 5 == 0:
+            return Action.MOVE  # Wumpus can move every 5 time steps
+
+        return Action.NOOP  # No operation if no action is needed
 
 
 class Gold(Thing):
