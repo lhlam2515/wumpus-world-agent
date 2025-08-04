@@ -42,9 +42,6 @@ class Environment(ABC):
 
     def step(self):
         """Perform a single step in the environment."""
-        if self.is_done():
-            return
-
         actions = []
         for agent in self.agents:
             if agent.alive:

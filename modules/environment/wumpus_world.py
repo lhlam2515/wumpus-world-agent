@@ -1,5 +1,5 @@
+import random
 from itertools import product
-from random import random as get_probability
 from modules.utils import Action
 from .environment import Environment
 from .entity import Explorer, Gold, Pit, Wumpus
@@ -19,10 +19,10 @@ class WumpusWorld(Environment):
 
         # Spawn pits in the environment
         for x, y in product(range(self.width), repeat=2):
-            if get_probability() > pit_probability:
+            if random.random() > pit_probability:
                 continue
 
-            if (x, y) == (0, 0):
+            if (x, y) in [(0, 0), (1, 0), (0, 1)]:
                 continue  # Don't place pits at the starting location
 
             self.add_thing(Pit(), (x, y))
@@ -30,13 +30,16 @@ class WumpusWorld(Environment):
 
         # Spawn wumpuses in the environment
         while len(wumpus_locations) < k_wumpus:
-            location = self.random_location(exclude=[(0, 0), *pit_locations])
-            if self.add_thing(Wumpus(), location):
+            location = self.random_location(
+                exclude=[(0, 0), (1, 0), (0, 1), *pit_locations]
+            )
+            if self.add_thing(self.wumpus_program(), location):
                 wumpus_locations.append(location)
 
         # Spawn gold in the environment.
         gold_location = self.random_location(
-            exclude=[(0, 0), *pit_locations, *wumpus_locations])
+            exclude=[*pit_locations, *wumpus_locations]
+        )
         self.add_thing(Gold(), gold_location)
 
         # Spawn the agent in the environment.
@@ -126,6 +129,9 @@ class WumpusWorld(Environment):
 
     def in_danger(self, agent):
         """Check if Explorer is in danger, if he is, kill him."""
+        if not agent.alive:
+            return True  # Agent is already dead
+
         things_at_location = self._list_things_at(agent.position.location)
         for thing in things_at_location:
             if isinstance(thing, Pit) or (isinstance(thing, Wumpus) and thing.alive):
