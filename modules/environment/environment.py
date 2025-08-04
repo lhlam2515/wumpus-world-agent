@@ -14,6 +14,8 @@ class Environment(ABC):
         self._x_start, self._y_start = 0, 0
         self._x_end, self._y_end = width - 1, height - 1
 
+        self.time = 0  # Initialize time for time-based actions
+
     @abstractmethod
     def percept(self, agent):
         """Get the percept for the given agent."""
@@ -45,7 +47,7 @@ class Environment(ABC):
         actions = []
         for agent in self.agents:
             if agent.alive:
-                actions.append(agent.program(self.percept(agent)))
+                actions.append(agent.program(self.percept(agent), self.time))
             else:
                 actions.append(Action.NOOP)
 
@@ -53,6 +55,8 @@ class Environment(ABC):
         for agent, action in zip(agents, actions):
             if action is not Action.NOOP:
                 self.execute_action(agent, action)
+
+        self.time += 1  # Increment time after all actions are executed
 
     def is_inbounds(self, location):
         """Check if the given coordinates are within the environment's bounds."""
@@ -98,9 +102,12 @@ class Environment(ABC):
 
         return [thing for thing in self.things if thing.location in near_location]
 
-    def move_to(self, thing, destination):
+    def move_to(self, thing, destination, obstacle_types=None):
         """Move a thing to the specified destination."""
         thing.bump = not self.is_inbounds(destination)
+        if obstacle_types and self._some_things_at(destination, obstacle_types):
+            thing.bump = True
+
         if not thing.bump:
             thing.location = destination
             if hasattr(thing, 'position'):

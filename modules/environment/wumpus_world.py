@@ -8,8 +8,9 @@ from .entity import Explorer, Gold, Pit, Wumpus
 class WumpusWorld(Environment):
     """A Wumpus World environment for the Wumpus World agent."""
 
-    def __init__(self, agent_program, size=8, k_wumpus=2, pit_probability=0.2):
+    def __init__(self, agent_program, size=8, k_wumpus=2, pit_probability=0.2, **kwargs):
         super().__init__(size, size)
+        self.wumpus_program = kwargs.get('wumpus_program', Wumpus)
         self.init_world(agent_program, k_wumpus, pit_probability)
 
     def init_world(self, agent_program, k_wumpus, pit_probability):
@@ -84,6 +85,16 @@ class WumpusWorld(Environment):
                 percepts['scream'] = True
                 wumpus.screamed = True
 
+        if not isinstance(agent, Wumpus):
+            return percepts
+
+        # ========== WUMPUS PERCEPT ========== #
+        # Check for the present of Explorer
+        percepts['explorer'] = any(
+            isinstance(thing, Explorer) and thing.alive
+            for thing in self._list_things_at(agent.location)
+        )
+
         return percepts
 
     def execute_action(self, agent, action):
@@ -126,6 +137,24 @@ class WumpusWorld(Environment):
                     arrow_travel = Action.forward(arrow_travel)
                 agent.has_arrow = False
                 agent.performance -= 10
+
+        # ========== WUMPUS ACTIONS ========== #
+        elif action == Action.KILL:  # Only triggered when Explorer at Wumpus location
+            list_things_at = self._list_things_at(agent.location)
+            for thing in list_things_at:
+                if isinstance(thing, Explorer) and thing.alive:
+                    thing.alive = False
+                    thing.killed_by = 'Wumpus'
+                    thing.performance -= 1000
+                    print(
+                        f"Explorer {thing.__class__.__name__} at {agent.location} has been killed by Wumpus!"
+                    )
+
+        elif action == Action.MOVE:  # Move Wumpus randomly
+            direction = random.choice([(0, 1), (1, 0), (0, -1), (-1, 0)])
+            new_location = (agent.location[0] + direction[0],  # type: ignore
+                            agent.location[1] + direction[1])  # type: ignore
+            agent.bump = self.move_to(agent, new_location, (Pit, Wumpus))
 
     def in_danger(self, agent):
         """Check if Explorer is in danger, if he is, kill him."""
