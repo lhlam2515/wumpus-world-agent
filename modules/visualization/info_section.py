@@ -24,12 +24,13 @@ class InfoSection:
 
     def __init_info_panel(self) -> Panel:
         items = {
+            "Agent": "N/A",
             "Step": "0",
             "Points": "0",
-            "KB size": "0",
-            "Has arrow": "True",
-            "Has gold": "False",
-            "Status": "Alive",
+            "KB size": "N/A",
+            "Has arrow": "N/A",
+            "Has gold": "N/A",
+            "Status": "N/A",
         }
 
         item_size = config.panel["item_height"] + config.panel["item_spacing"]
@@ -87,6 +88,7 @@ class InfoSection:
 
         self.info_panel.render(
             {
+                "Agent": env.get("agent_name", "N/A"),
                 "Step": env.get("step_count", 0),
                 "Points": env.get("performance", 0),
                 "KB size": env.get("kb_size", "N/A"),

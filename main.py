@@ -17,6 +17,7 @@ def init_environment():
         "is_running": True,
         "wumpus_world": wumpus_world,
         "agent": agent,
+        "agent_name": agent.__class__.__name__,
         "is_done": False,
         "init_world": True,
         "point": 0,
