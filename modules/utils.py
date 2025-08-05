@@ -88,6 +88,9 @@ class Position:
     def set_orientation(self, orientation: Orientation):
         self.__orientation = orientation
 
+    def __repr__(self) -> str:
+        return f"Position(x={self.x}, y={self.y}, orientation={self.__orientation})"
+
     def __eq__(self, other):
         if self.location != other.location:
             return False
@@ -122,6 +125,9 @@ class Action(Enum):
     SHOOT = "Shoot"
     CLIMB = "Climb"
     NOOP = "NoOp"  # No operation, used when no action is needed
+
+    KILL = "Kill"  # Action to kill the Agent, used by SmartWumpus
+    MOVE = "Move"  # Action to move the Wumpus, used by SmartWumpus
 
     @staticmethod
     def forward(position: Position) -> Position:
