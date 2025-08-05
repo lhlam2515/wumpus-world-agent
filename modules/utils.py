@@ -112,6 +112,9 @@ class Action(Enum):
     CLIMB = "Climb"
     NOOP = "NoOp"  # No operation, used when no action is needed
 
+    KILL = "Kill"  # Action to kill the Agent, used by SmartWumpus
+    MOVE = "Move"  # Action to move the Wumpus, used by SmartWumpus
+
     @staticmethod
     def forward(position: Position) -> Position:
         """Returns a new position after moving forward."""
