@@ -68,7 +68,7 @@ class HybridAgent(Explorer):
             if 0 <= x < self.size and 0 <= y < self.size:
                 yield x, y
 
-    def execute(self, percept):
+    def execute(self, percept, time):
         """Execute the agent's program based on the percept."""
         x, y = self.position.location
         self.kb.tell_percept(x, y, percept)
@@ -80,47 +80,53 @@ class HybridAgent(Explorer):
         self.frontier.update(self._neighbors(x, y))
         self.frontier.difference_update(self.visited)
 
-        if not self.has_gold and self.kb.ask_if_true([glitter()]):
+        safe_positions = self.safe_positions
+
+        self.plan = []  # Reset plan due to dynamic environment
+        if (time + 1) % 5 == 0:
+            safe_positions -= set(pos for pos in self.stench_positions)
+
+        if self.kb.ask_if_true([glitter()]):
             goals = (0, 0)
             self.plan.append(Action.GRAB) if not self.has_gold else None
-            temp = self.plan_route(self.position, goals, self.safe_positions)
+            temp = self.plan_route(self.position, goals, safe_positions)
             self.plan.extend(temp)
             self.plan.append(Action.CLIMB)
 
         if len(self.plan) == 0:
-            unvisited_safe = self.frontier.intersection(self.safe_positions)
+            unvisited_safe = self.frontier.intersection(safe_positions)
 
             temp = self.plan_route(
-                self.position, unvisited_safe, self.safe_positions
+                self.position, unvisited_safe, safe_positions
             )
             self.plan.extend(temp)
 
         if len(self.plan) == 0:
-            uncertain_positions = set(self.frontier) - set(self.safe_positions)
+            uncertain_positions = set(self.frontier) - set(safe_positions)
             uncertain_positions -= self.pit_positions
             uncertain_positions -= self.wumpus_positions
 
             temp = self.plan_uncertain(
-                self.position, uncertain_positions, self.safe_positions
+                self.position, uncertain_positions, safe_positions
             )
             self.plan.extend(temp)
 
         if len(self.plan) == 0 and self.has_arrow:
             temp = self.plan_shot(
-                self.position, self.wumpus_positions, self.safe_positions,
+                self.position, self.wumpus_positions, safe_positions,
                 sub_positions=self.stench_positions
             )
             self.plan.extend(temp)
 
         if len(self.plan) == 0 and self.kb.ask_if_true([scream()]):
             temp = self.plan_route(
-                self.position, self.stench_positions, self.safe_positions
+                self.position, self.stench_positions, safe_positions
             )
             self.plan.extend(temp)
 
         if len(self.plan) == 0:
             start = (0, 0)
-            temp = self.plan_route(self.position, start, self.safe_positions)
+            temp = self.plan_route(self.position, start, safe_positions)
             self.plan.extend(temp)
             self.plan.append(Action.CLIMB)
 
@@ -177,16 +183,24 @@ class HybridAgent(Explorer):
             risk_positions, pit_probabilities, wumpus_probabilities
         )
 
+        print(f"Pit probabilities: {pit_probabilities}")
+        print(f"Wumpus probabilities: {wumpus_probabilities}")
+        print(f"Low risk positions: {low_risk_positions}")
+
         return self.plan_route(current, low_risk_positions, allowed)
 
     def _compute_pit_probability(self, uncertain_positions):
         """Compute the probability of pits in uncertain positions."""
+        uncertain_positions = set(pos for pos in uncertain_positions
+                                  if self.kb.ask_if_true([~pit(*pos)]) is None)
         return self._compute_entity_probability(
             uncertain_positions, pit, self.pit_prob
         )
 
     def _compute_wumpus_probability(self, uncertain_positions):
         """Compute the probability of wumpuses in uncertain positions."""
+        uncertain_positions = set(pos for pos in uncertain_positions
+                                  if self.kb.ask_if_true([~wumpus(*pos)]) is None)
         return self._compute_entity_probability(
             uncertain_positions, wumpus, self.k_wumpus / self.size**2
         )
