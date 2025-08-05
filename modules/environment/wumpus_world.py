@@ -146,9 +146,6 @@ class WumpusWorld(Environment):
                     thing.alive = False
                     thing.killed_by = 'Wumpus'
                     thing.performance -= 1000
-                    print(
-                        f"Explorer {thing.__class__.__name__} at {agent.location} has been killed by Wumpus!"
-                    )
 
         elif action == Action.MOVE:  # Move Wumpus randomly
             direction = random.choice([(0, 1), (1, 0), (0, -1), (-1, 0)])
