@@ -1,6 +1,6 @@
+import random
 from typing import Iterator
 from itertools import product
-from random import random as get_probability
 from modules.utils import Action
 from .environment import Environment
 from .entity import Explorer, Gold, Pit, Wumpus, Thing
@@ -9,8 +9,11 @@ from .entity import Explorer, Gold, Pit, Wumpus, Thing
 class WumpusWorld(Environment):
     """A Wumpus World environment for the Wumpus World agent."""
 
-    def __init__(self, agent_program, size=8, k_wumpus=2, pit_probability=0.2):
+    def __init__(
+        self, agent_program, size=8, k_wumpus=2, pit_probability=0.2, **kwargs
+    ):
         super().__init__(size, size)
+        self.wumpus_program = kwargs.get("wumpus_program", Wumpus)
         self.init_world(agent_program, k_wumpus, pit_probability)
 
     def init_world(self, agent_program, k_wumpus, pit_probability):
@@ -20,10 +23,10 @@ class WumpusWorld(Environment):
 
         # Spawn pits in the environment
         for x, y in product(range(self.width), repeat=2):
-            if get_probability() > pit_probability:
+            if random.random() > pit_probability:
                 continue
 
-            if (x, y) == (0, 0):
+            if (x, y) in [(0, 0), (1, 0), (0, 1)]:
                 continue  # Don't place pits at the starting location
 
             self.add_thing(Pit(), (x, y))
@@ -31,13 +34,15 @@ class WumpusWorld(Environment):
 
         # Spawn wumpuses in the environment
         while len(wumpus_locations) < k_wumpus:
-            location = self.random_location(exclude=[(0, 0), *pit_locations])
-            if self.add_thing(Wumpus(), location):
+            location = self.random_location(
+                exclude=[(0, 0), (1, 0), (0, 1), *pit_locations]
+            )
+            if self.add_thing(self.wumpus_program(), location):
                 wumpus_locations.append(location)
 
         # Spawn gold in the environment.
         gold_location = self.random_location(
-            exclude=[(0, 0), *pit_locations, *wumpus_locations]
+            exclude=[*pit_locations, *wumpus_locations]
         )
         self.add_thing(Gold(), gold_location)
 
@@ -64,7 +69,7 @@ class WumpusWorld(Environment):
         """Get the percept for the given agent."""
         things_near = self.things_near(agent.location)
 
-        percepts: dict[str, bool | tuple[int, int]] = {
+        percepts: dict[str, bool] = {
             "breeze": any(isinstance(thing, Pit) for thing in things_near),
             "stench": any(
                 isinstance(thing, Wumpus) and thing.alive for thing in things_near
@@ -82,8 +87,18 @@ class WumpusWorld(Environment):
         wumpuses = [thing for thing in self.things if isinstance(thing, Wumpus)]
         for wumpus in wumpuses:
             if not wumpus.alive and not wumpus.screamed:
-                percepts["scream"] = wumpus.location  # type: ignore
+                percepts["scream"] = True
                 wumpus.screamed = True
+
+        if not isinstance(agent, Wumpus):
+            return percepts
+
+        # ========== WUMPUS PERCEPT ========== #
+        # Check for the present of Explorer
+        percepts["explorer"] = any(
+            isinstance(thing, Explorer) and thing.alive
+            for thing in self._list_things_at(agent.location)
+        )
 
         return percepts
 
@@ -128,8 +143,28 @@ class WumpusWorld(Environment):
                 agent.has_arrow = False
                 agent.performance -= 10
 
+        # ========== WUMPUS ACTIONS ========== #
+        elif action == Action.KILL:  # Only triggered when Explorer at Wumpus location
+            list_things_at = self._list_things_at(agent.location)
+            for thing in list_things_at:
+                if isinstance(thing, Explorer) and thing.alive:
+                    thing.alive = False
+                    thing.killed_by = "Wumpus"
+                    thing.performance -= 1000
+
+        elif action == Action.MOVE:  # Move Wumpus randomly
+            direction = random.choice([(0, 1), (1, 0), (0, -1), (-1, 0)])
+            new_location = (
+                agent.location[0] + direction[0],  # type: ignore
+                agent.location[1] + direction[1],
+            )  # type: ignore
+            agent.bump = self.move_to(agent, new_location, (Pit, Wumpus))
+
     def in_danger(self, agent):
         """Check if Explorer is in danger, if he is, kill him."""
+        if not agent.alive:
+            return True  # Agent is already dead
+
         things_at_location = self._list_things_at(agent.position.location)
         for thing in things_at_location:
             if isinstance(thing, Pit) or (isinstance(thing, Wumpus) and thing.alive):
@@ -143,7 +178,7 @@ class WumpusWorld(Environment):
         explorer = [agent for agent in self.agents if isinstance(agent, Explorer)]
         # Check if all explorers are dead or have climbed out
         if explorer:
-            if all(self.in_danger(agent) for agent in explorer):
+            if all(self.in_danger(agent) or not agent.alive for agent in explorer):
                 return True
             else:
                 return False

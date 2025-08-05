@@ -1,18 +1,15 @@
-from .infer_engine import DPLLEngine, InferEngine
 from .logic import *
 
 
 class KnowledgeBase:
     """Knowledge Base for Wumpus World."""
 
-    def __init__(self, size=8, k=2, infer_engine: type[InferEngine] = DPLLEngine):
+    def __init__(self, size=8):
         self.size = size
-        self.n_wumpus = k
-        self.infer_engine = infer_engine
 
         # Initialize the knowledge base with clauses
         self.clauses: set[Clause] = set(
-            ~(wumpus(0, 0) | pit(0, 0) | glitter())
+            ~(wumpus(0, 0) | pit(0, 0) | glitter() | scream())
         )
 
     def __iter__(self):
@@ -38,6 +35,7 @@ class KnowledgeBase:
                 "Unexpected clause type. Must be Literal or Clause."
             )
 
+        unit_clauses = set()
         clauses = sorted(clauses, key=lambda c: repr(c))
         for clause in clauses:
             new = Clause(clause) if isinstance(clause, Literal) else clause
@@ -45,14 +43,18 @@ class KnowledgeBase:
             # to avoid contradictions due to the dynamic information
             if isinstance(~new, Clause):
                 self.clauses.discard(~new)  # type: ignore
+                unit_clauses.add(new)
             elif all(c in self.clauses for c in ~new):
                 self.clauses.difference_update(set(~new))
 
             self.clauses = self.clauses.union({new})
+        # Make sure the unit clauses that replaced negated clauses are added
+        # to the knowledge base, so they can be used for inference.
+        self.clauses = self.clauses.union(unit_clauses)
 
-        self.refresh()
+        self.infer()
 
-    def tell_percept(self, i, j, percepts: dict[str, bool | tuple[int, int]]):
+    def tell_percept(self, i, j, percepts: dict[str, bool]):
         """Tell the knowledge base about a percept at (i, j)."""
         # 1) Create the clauses based on the percepts
         clauses = self._make_percept_clauses(i, j, percepts)
@@ -75,37 +77,19 @@ class KnowledgeBase:
         if all(Clause(lit) in self.clauses for lit in query):
             return True
 
-        if any(Clause(~lit) in self.clauses for lit in query):
+        if any(~Clause(lit) in self.clauses for lit in query):
             return False
 
-        sat = self.infer_engine()(self, Clause(*[~lit for lit in query]))
-        self.tell(*[Clause(lit) for lit in query]) if not sat else None
-        return not sat
+        return None
 
-    def ask_if_inconsistent(self, query: list[Clause]):
-        """Check if a query is inconsistent with the knowledge base."""
-        if all(c in self.clauses for c in query):
-            return False  # The query is consistent with the knowledge base
-
-        negated_clauses = []
-        for clause in query:
-            if clause.is_unit():
-                negated_clauses.append(~clause)
-            else:
-                negated_clauses.extend(~clause)
-        if any(clause in self.clauses for clause in negated_clauses):
-            return True
-
-        return not self.infer_engine()(self, query)
-
-    def refresh(self):
-        """Refresh the knowledge base by removing redundant clauses."""
+    def infer(self):
+        """Infer new knowledge based on the current knowledge base."""
         # Get unit clauses as a set of unit literals
         model = {c.unit() for c in self.clauses if c.is_unit()}
         if not model:  # No unit clauses to simplify
             return
 
-        # Simplify the clauses based on the current model
+        # Simplify the knowledge base with the current model
         new_clauses = set()
         for clause in self.clauses:
             simplified_clause = clause.simplify(model)
@@ -120,7 +104,7 @@ class KnowledgeBase:
 
         # Otherwise, update the knowledge base with the new clauses
         self.clauses = new_clauses
-        self.refresh()
+        self.infer()
 
     def _adjacent(self, i, j):
         """Generate adjacent cells for a given cell (i, j)."""
@@ -129,7 +113,7 @@ class KnowledgeBase:
             if 0 <= ni < self.size and 0 <= nj < self.size:
                 yield (ni, nj)
 
-    def _make_percept_clauses(self, i, j, percepts: dict[str, bool | tuple[int, int]]):
+    def _make_percept_clauses(self, i, j, percepts: dict[str, bool]):
         """Generate clauses based on percepts for a given cell (i, j)."""
         clauses = set()
 
@@ -140,8 +124,8 @@ class KnowledgeBase:
                 clauses.add(stench(i, j) if value else ~stench(i, j))
             elif percept == 'glitter':
                 clauses.add(glitter() if value else ~glitter())
-            elif percept == 'scream' and isinstance(value, tuple):
-                clauses.update([~wumpus(*value), ~pit(*value)])
+            elif percept == 'scream':
+                clauses.add(scream() if value else ~scream())
 
         return clauses
 

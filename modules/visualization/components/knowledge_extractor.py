@@ -17,9 +17,9 @@ class KnowledgeExtractor:
 
     def get_safe_cells(self):
         """Get all cells known to be safe."""
-        if hasattr(self.agent, "safe_points"):
-            return set(self.agent.safe_points)
-        return set(self.agent.visited) if hasattr(self.agent, "visited") else None
+        return (
+            set(self.agent.safe_positions) if hasattr(self.agent, "visited") else None
+        )
 
     def get_visited_cells(self):
         """Get all cells the agent has visited."""
