@@ -32,12 +32,13 @@ colors = {
 # TYPOGRAPHY
 # =============================================================================
 fonts = {
-    "family": "Arial",  # Default font family
+    "medium": "Roboto-Medium",
+    "regular": "Roboto-Regular",
     "sizes": {
-        "large": 24,
-        "medium": 18,
-        "small": 14,
-        "tiny": 12,
+        "large": 28,
+        "medium": 24,
+        "small": 20,
+        "tiny": 16,
     },
 }
 
@@ -58,12 +59,13 @@ map_section = {
     "animation_delay": 1000,
     "text_size": fonts["sizes"]["medium"],
     "text_color": colors["red"],
+    "text_font": fonts["regular"],
     "title_size": fonts["sizes"]["large"],
     "title_color": colors["dark_blue"],
-    "font_family": fonts["family"],
+    "title_font": fonts["medium"],
 }
 
-info_section = {"position": (10, 70)}
+info_section = {"position": (10, 50)}
 
 # =============================================================================
 # COMPONENT CONFIGURATION
@@ -74,7 +76,8 @@ button = {
     # Typography settings
     "text_normal": fonts["sizes"]["medium"],
     "text_small": fonts["sizes"]["small"],
-    "font_family": fonts["family"],
+    "font_medium": fonts["medium"],
+    "font_regular": fonts["regular"],
     # Visual settings
     "border_radius": 8,
     "hover_offset": 2,
@@ -112,15 +115,29 @@ panel = {
     "width": 300,
     "border_radius": 8,
     "headline_color": colors["primary_blue"],
-    "headline_font": fonts["family"],
-    "headline_size": fonts["sizes"]["large"],
-    "tag_font": fonts["family"],
-    "tag_size": fonts["sizes"]["medium"],
-    "value_font": fonts["family"],
-    "value_size": fonts["sizes"]["medium"],
+    "headline_font": fonts["medium"],
+    "headline_size": fonts["sizes"]["medium"],
+    "tag_font": fonts["medium"],
+    "tag_size": fonts["sizes"]["small"],
+    "value_font": fonts["regular"],
+    "value_size": fonts["sizes"]["small"],
     "item_spacing": 10,
     "item_height": 20,
     "text_color": colors["white"],
+}
+
+selector = {
+    "size": (270, 44),
+    "arrow_color": colors["primary_blue"],
+    "arrow_hover_color": colors["hover_blue"],
+    "arrow_size": (34, 44),
+    "arrow_padding": 10,
+    "label_size": (169, 44),
+    "label_bg_color": colors["dark_blue"],
+    "label_text_color": colors["white"],
+    "label_padding": 32,
+    "font_name": fonts["medium"],
+    "font_size": fonts["sizes"]["small"],
 }
 
 world_view = {"board_size": 512}

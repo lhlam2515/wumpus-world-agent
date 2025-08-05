@@ -3,9 +3,13 @@ from modules.visualization.components.world_view import WorldView
 from modules.visualization.components.world_data import WorldData
 import modules.visualization.ui_config as config
 from modules.visualization.components.button import Button
+from modules.visualization.components.selector import Selector
 from modules.visualization.components.knowledge_extractor import KnowledgeExtractor
 from modules.environment import WumpusWorld
-from modules.agent import HybridAgent
+from modules.agent import HybridAgent, RandomAgent
+
+
+MAX_MAP_NUM = 5
 
 
 class MapSection:
@@ -16,15 +20,16 @@ class MapSection:
         self.world_view = None
         self.agent_view = None
         self.position = position
-        self.world_position = (position[0], position[1] + 70)
+        self.world_position = (position[0], position[1] + 50)
         self.agent_position = (
             position[0]
             + config.world_view["board_size"]
             + config.map_section["board_spacing"],
-            position[1] + 70,
+            position[1] + 50,
         )
         self.buttons = self.__init_buttons()
         self.text = self.__init_text()
+        self.selectors = self.__init_selectors()
 
         self.__drawn_final_world = False
         self.__have_new_step = False
@@ -42,6 +47,10 @@ class MapSection:
 
         for text, rect in self.text[1:]:
             surface.blit(text, rect)
+
+        for selector in self.selectors:
+            selector.render()
+            surface.blit(selector, selector.position)
 
     def handle_events(
         self, surface: pygame.Surface, event: pygame.event.Event, dt, env
@@ -122,8 +131,8 @@ class MapSection:
     def __init_buttons(self):
         """Initialize buttons for the main map section."""
         size = config.map_section["button_size"]
-        text_style = ["text_small", "font_family"]
-        pos_y = self.world_position[1] + config.world_view["board_size"] + 40
+        text_style = ["text_normal", "font_medium"]
+        pos_y = self.world_position[1] + config.world_view["board_size"] + 85
 
         button_configs = [
             {
@@ -133,9 +142,9 @@ class MapSection:
                     - config.map_section["button_size"][0] / 2,
                     pos_y,
                 ),
-                "label": "Random map",
+                "label": "Create world",
                 "variant": "secondary",
-                "action": self.__random_map,
+                "action": self.__create_world,
             },
             {
                 "position": (
@@ -194,13 +203,17 @@ class MapSection:
                         new_env = button.action(new_env)
                     break
 
+            # Check for selector events
+            for selector in self.selectors:
+                new_env = selector.handle_event(surface, event, new_env)
+
         return new_env
 
     def __init_text(self):
         """Initialize text for the map section."""
         text = []
         text_font = pygame.font.Font(
-            f"./assets/fonts/{config.map_section['font_family']}.ttf",
+            f"./assets/fonts/{config.map_section['text_font']}.ttf",
             config.map_section["text_size"],
         )
 
@@ -214,7 +227,7 @@ class MapSection:
 
         # Initialize world title text
         title_font = pygame.font.Font(
-            f"./assets/fonts/{config.map_section['font_family']}.ttf",
+            f"./assets/fonts/{config.map_section['title_font']}.ttf",
             config.map_section["title_size"],
         )
         world_title = title_font.render(
@@ -239,6 +252,41 @@ class MapSection:
         text.append((agent_title, agent_title_rect))
         return text
 
+    def __init_selectors(self):
+        world_selector = Selector(
+            position=(
+                self.world_position[0]
+                + config.world_view["board_size"] // 2
+                - config.selector["size"][0]
+                - 10,
+                self.world_position[1] + config.world_view["board_size"] + 20,
+            ),
+            size=config.selector["size"],
+            items=[f"World {i}" for i in range(1, MAX_MAP_NUM + 1)]
+            + [
+                "Random 4 x 4",
+                "Random 8 x 8",
+                "Random 10 x 10",
+                "Random 12 x 12",
+                "Random 16 x 16",
+            ],
+            initial_index=0,
+            on_change=self.__on_select_world,
+        )
+
+        agent_selector = Selector(
+            position=(
+                self.world_position[0] + config.world_view["board_size"] // 2 + 10,
+                self.world_position[1] + config.world_view["board_size"] + 20,
+            ),
+            size=config.selector["size"],
+            items=["Hybrid Agent", "Random Agent"],
+            initial_index=0,
+            on_change=self.__on_select_agent,
+        )
+
+        return [world_selector, agent_selector]
+
     def _render_thinking_indicator(self, surface: pygame.Surface):
         thinking_text, thinking_rect = self.text[0]
         surface.blit(thinking_text, thinking_rect)
@@ -252,12 +300,79 @@ class MapSection:
         new_env["next_step"] = True
         return new_env
 
-    def __random_map(self, env):
-        """Generate a random map."""
+    def __on_select_world(self, value, env):
+        """Handle the map selection change."""
         new_env = {**env}
-        size = 8
-        agent = HybridAgent(size=size)
-        wumpus_world = WumpusWorld(agent, size=size)
+        new_env["selected_world"] = value
+        return new_env
+
+    def __on_select_agent(self, value, env):
+        """Handle the agent selection change."""
+        new_env = {**env}
+        new_env["selected_agent"] = value
+        return new_env
+
+    def __create_agent(self, type, map_size):
+        """Create an agent based on the selected type."""
+        if type == "Hybrid Agent":
+            agent = HybridAgent(size=map_size)
+        elif type == "Random Agent":
+            agent = RandomAgent(size=map_size)
+        else:
+            raise ValueError(f"Unknown agent type: {type}")
+        return agent
+
+    def __create_world(self, env):
+        """Create a new world based on the selected map and agent."""
+        new_env = {**env}
+        selected_world = new_env.get("selected_world", "Random 8 x 8")
+        selected_agent = new_env.get("selected_agent", "Hybrid Agent")
+
+        if selected_world.startswith("Random"):
+            map_size = int(selected_world[-2:].strip())
+            new_env = self.__random_world(new_env, map_size, selected_agent)
+
+        else:
+            map_num = int(selected_world[-2:].strip())
+            new_env = self.__load_world(new_env, map_num, selected_agent)
+
+        return new_env
+
+    def __load_world(self, env, map_num, agent_type: int):
+        """Load a predefined wumpus world."""
+        new_env = {**env}
+
+        # TODO Load the world from a predefined source, this is a placeholder
+        agent = self.__create_agent(agent_type, 8)
+        wumpus_world = WumpusWorld(agent)
+
+        new_env.update(
+            {
+                "is_running": True,
+                "wumpus_world": wumpus_world,
+                "agent": agent,
+                "agent_name": agent.__class__.__name__,
+                "is_done": False,
+                "init_world": True,
+                "point": 0,
+                "step_count": 0,
+                "has_arrow": True,
+                "has_gold": False,
+                "kb_size": "N/A",
+                "next_step": False,
+            }
+        )
+
+        self.__drawn_final_world = False
+        self.__have_new_step = False
+        return new_env
+
+    def __random_world(self, env, map_size, agent_type):
+        """Generate a random world."""
+        new_env = {**env}
+
+        agent = self.__create_agent(agent_type, map_size)
+        wumpus_world = WumpusWorld(agent, size=map_size)
 
         new_env.update(
             {

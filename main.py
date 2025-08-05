@@ -24,6 +24,8 @@ def init_environment():
         "step_count": 0,
         "has_arrow": True,
         "has_gold": False,
+        "selected_world": "Random 8 x 8",
+        "selected_agent": "Hybrid Agent",
     }
 
     return env
