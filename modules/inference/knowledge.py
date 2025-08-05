@@ -80,7 +80,7 @@ class KnowledgeBase:
         if any(~Clause(lit) in self.clauses for lit in query):
             return False
 
-        return False
+        return None
 
     def infer(self):
         """Infer new knowledge based on the current knowledge base."""
