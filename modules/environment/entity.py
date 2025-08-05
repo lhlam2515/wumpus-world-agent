@@ -29,6 +29,7 @@ class Explorer(Agent):
         self.holding: set[Thing] = {Arrow()}
         self.killed_by = ""
         self.visited = set()
+        self.in_world = True
 
     @property
     def has_arrow(self):

@@ -1,8 +1,9 @@
+from typing import Iterator
 from itertools import product
 from random import random as get_probability
 from modules.utils import Action
 from .environment import Environment
-from .entity import Explorer, Gold, Pit, Wumpus
+from .entity import Explorer, Gold, Pit, Wumpus, Thing
 
 
 class WumpusWorld(Environment):
@@ -36,7 +37,8 @@ class WumpusWorld(Environment):
 
         # Spawn gold in the environment.
         gold_location = self.random_location(
-            exclude=[(0, 0), *pit_locations, *wumpus_locations])
+            exclude=[(0, 0), *pit_locations, *wumpus_locations]
+        )
         self.add_thing(Gold(), gold_location)
 
         # Spawn the agent in the environment.
@@ -46,10 +48,12 @@ class WumpusWorld(Environment):
         else:
             self.add_thing(agent_program, (0, 0), replace=True)
 
-    def get_world(self):
+    def get_world(self) -> Iterator[list[list[Thing]]]:
         """Return the items in the Wumpus World."""
-        world = [[[] for _ in range(self._x_start, self._x_end + 1)]
-                 for _ in range(self._y_start, self._y_end + 1)]
+        world = [
+            [[] for _ in range(self._x_start, self._x_end + 1)]
+            for _ in range(self._y_start, self._y_end + 1)
+        ]
         for thing in self.things:
             y, x = thing.location
             if self.is_inbounds((x, y)):
@@ -61,24 +65,24 @@ class WumpusWorld(Environment):
         things_near = self.things_near(agent.location)
 
         percepts: dict[str, bool | tuple[int, int]] = {
-            'breeze': any(isinstance(thing, Pit) for thing in things_near),
-            'stench': any(isinstance(thing, Wumpus) and thing.alive for thing in things_near),
+            "breeze": any(isinstance(thing, Pit) for thing in things_near),
+            "stench": any(
+                isinstance(thing, Wumpus) and thing.alive for thing in things_near
+            ),
         }
 
         # Check for bump (if agent bumped into a wall)
-        percepts['bump'] = agent.bump if hasattr(agent, 'bump') else False
+        percepts["bump"] = agent.bump if hasattr(agent, "bump") else False
 
         # Check for glitter (gold) only at the agent's location
         if any(self._list_things_at(agent.location, Gold)):
-            percepts['glitter'] = True
+            percepts["glitter"] = True
 
         # Check for scream (wumpus death)
-        wumpuses = [
-            thing for thing in self.things if isinstance(thing, Wumpus)
-        ]
+        wumpuses = [thing for thing in self.things if isinstance(thing, Wumpus)]
         for wumpus in wumpuses:
             if not wumpus.alive and not wumpus.screamed:
-                percepts['scream'] = wumpus.location  # type: ignore
+                percepts["scream"] = wumpus.location  # type: ignore
                 wumpus.screamed = True
 
         return percepts
@@ -102,23 +106,23 @@ class WumpusWorld(Environment):
         elif action == Action.GRAB:  # Only triggered when gold at agent's location
             if self._some_things_at(agent.position.location, Gold):
                 agent.grab_gold(Gold())
+                self.things = [
+                    thing for thing in self.things if not isinstance(thing, Gold)
+                ]
             agent.performance += 10 if agent.has_gold else 0
         elif action == Action.CLIMB:
             if agent.location == (0, 0):
                 agent.performance += 1000 if agent.has_gold else 0
+                agent.in_world = False
                 self.remove_thing(agent)
         elif action == Action.SHOOT:
             if agent.has_arrow:
                 arrow_travel = Action.forward(agent.position)
                 while self.is_inbounds(arrow_travel.location):
-                    wumpus = self._list_things_at(
-                        arrow_travel.location, Wumpus
-                    )
+                    wumpus = self._list_things_at(arrow_travel.location, Wumpus)
                     if wumpus:
                         wumpus[0].alive = False  # type: ignore
-                        print(
-                            f"Wumpus at {arrow_travel.location} has been killed!"
-                        )
+                        print(f"Wumpus at {arrow_travel.location} has been killed!")
                         break
                     arrow_travel = Action.forward(arrow_travel)
                 agent.has_arrow = False
@@ -136,9 +140,7 @@ class WumpusWorld(Environment):
 
     def is_done(self):
         """Check if the environment is in a terminal state."""
-        explorer = [
-            agent for agent in self.agents if isinstance(agent, Explorer)
-        ]
+        explorer = [agent for agent in self.agents if isinstance(agent, Explorer)]
         # Check if all explorers are dead or have climbed out
         if explorer:
             if all(self.in_danger(agent) for agent in explorer):

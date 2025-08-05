@@ -3,6 +3,7 @@ from enum import Enum
 
 class Orientation(Enum):
     """Enum-like class for orientations."""
+
     NORTH = "North"
     EAST = "East"
     SOUTH = "South"
@@ -67,7 +68,9 @@ class Orientation(Enum):
 class Position:
     """Class representing a position with coordinates and orientation."""
 
-    def __init__(self, x: int = 0, y: int = 0, orientation: Orientation = Orientation.EAST):
+    def __init__(
+        self, x: int = 0, y: int = 0, orientation: Orientation = Orientation.EAST
+    ):
         self.x, self.y = x, y
         self.__orientation = orientation
 
@@ -95,15 +98,23 @@ class Position:
 
     def __lt__(self, other):
         """Less than comparison based on coordinates and orientation."""
-        return (self.get_orientation(), self.location) < (other.get_orientation(), other.location)
+        return (self.get_orientation(), self.location) < (
+            other.get_orientation(),
+            other.location,
+        )
 
     def __sub__(self, other) -> tuple[int, int, int]:
         """Subtracts another position from this one, returning a tuple of differences."""
-        return abs(self.x - other.x), abs(self.y - other.y), self.get_orientation() - other.get_orientation()
+        return (
+            abs(self.x - other.x),
+            abs(self.y - other.y),
+            self.get_orientation() - other.get_orientation(),
+        )
 
 
 class Action(Enum):
     """Enum-like class for actions"""
+
     FORWARD = "Forward"
     TURN_LEFT = "TurnLeft"
     TURN_RIGHT = "TurnRight"
