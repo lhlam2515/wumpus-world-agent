@@ -25,12 +25,13 @@ class InfoSection:
     def __init_info_panel(self) -> Panel:
         items = {
             "Agent": "N/A",
+            "Wumpus": "N/A",
             "Step": "0",
             "Points": "0",
             "KB size": "N/A",
             "Has arrow": "N/A",
             "Has gold": "N/A",
-            "Status": "N/A",
+            "Agent status": "N/A",
         }
 
         item_size = config.panel["item_height"] + config.panel["item_spacing"]
@@ -84,17 +85,21 @@ class InfoSection:
             else:
                 status = "Alive"
         else:
-            status = "Killed by " + env.get("killed_by", "unknown")
+            killed_by = env.get("killed_by", "unknown")
+            if killed_by.endswith("Wumpus"):
+                killed_by = "Wumpus"
+            status = "Killed by " + killed_by
 
         self.info_panel.render(
             {
                 "Agent": env.get("agent_name", "N/A"),
+                "Wumpus": env.get("wumpus_mode", "N/A"),
                 "Step": env.get("step_count", 0),
                 "Points": env.get("performance", 0),
                 "KB size": env.get("kb_size", "N/A"),
                 "Has arrow": env.get("has_arrow", "True"),
                 "Has gold": env.get("has_gold", "False"),
-                "Status": status,
+                "Agent status": status,
             }
         )
 

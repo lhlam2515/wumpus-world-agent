@@ -38,7 +38,7 @@ fonts = {
         "large": 28,
         "medium": 24,
         "small": 20,
-        "tiny": 16,
+        "tiny": 18,
     },
 }
 
@@ -120,7 +120,7 @@ panel = {
     "tag_font": fonts["medium"],
     "tag_size": fonts["sizes"]["small"],
     "value_font": fonts["regular"],
-    "value_size": fonts["sizes"]["small"],
+    "value_size": fonts["sizes"]["tiny"],
     "item_spacing": 10,
     "item_height": 20,
     "text_color": colors["white"],

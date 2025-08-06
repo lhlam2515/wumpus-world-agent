@@ -7,9 +7,10 @@ from modules.visualization.components.selector import Selector
 from modules.visualization.components.knowledge_extractor import KnowledgeExtractor
 from modules.environment import WumpusWorld
 from modules.agent import HybridAgent, RandomAgent
+from modules.environment.entity import Wumpus, SmartWumpus
 
 
-MAX_MAP_NUM = 5
+MAX_WORLD_NUM = 5
 
 
 class MapSection:
@@ -137,20 +138,16 @@ class MapSection:
         button_configs = [
             {
                 "position": (
-                    self.position[0]
-                    + config.world_view["board_size"] / 2
-                    - config.map_section["button_size"][0] / 2,
+                    self.world_position[0] + config.world_view["board_size"] // 2 + 53,
                     pos_y,
                 ),
                 "label": "Create world",
-                "variant": "secondary",
+                "variant": "primary",
                 "action": self.__create_world,
             },
             {
                 "position": (
-                    self.position[0]
-                    + config.world_view["board_size"]
-                    + config.map_section["board_spacing"]
+                    self.agent_position[0]
                     + config.world_view["board_size"] / 2
                     - config.map_section["button_size"][0] / 2,
                     pos_y,
@@ -253,16 +250,16 @@ class MapSection:
         return text
 
     def __init_selectors(self):
+        """Initialize selectors for world and agent selection."""
+        pos_y = self.world_position[1] + config.world_view["board_size"] + 20
+
         world_selector = Selector(
             position=(
-                self.world_position[0]
-                + config.world_view["board_size"] // 2
-                - config.selector["size"][0]
-                - 10,
-                self.world_position[1] + config.world_view["board_size"] + 20,
+                self.world_position[0] + config.world_view["board_size"] // 2 + 10,
+                pos_y,
             ),
             size=config.selector["size"],
-            items=[f"World {i}" for i in range(1, MAX_MAP_NUM + 1)]
+            items=[f"World {i}" for i in range(1, MAX_WORLD_NUM + 1)]
             + [
                 "Random 4 x 4",
                 "Random 8 x 8",
@@ -276,8 +273,11 @@ class MapSection:
 
         agent_selector = Selector(
             position=(
-                self.world_position[0] + config.world_view["board_size"] // 2 + 10,
-                self.world_position[1] + config.world_view["board_size"] + 20,
+                self.world_position[0]
+                + config.world_view["board_size"] // 2
+                - config.selector["size"][0]
+                - 10,
+                pos_y,
             ),
             size=config.selector["size"],
             items=["Hybrid Agent", "Random Agent"],
@@ -285,7 +285,21 @@ class MapSection:
             on_change=self.__on_select_agent,
         )
 
-        return [world_selector, agent_selector]
+        wumpus_selector = Selector(
+            position=(
+                self.world_position[0]
+                + config.world_view["board_size"] // 2
+                - config.selector["size"][0]
+                - 10,
+                self.world_position[1] + config.world_view["board_size"] + 90,
+            ),
+            size=config.selector["size"],
+            items=["Idle Wumpus", "Smart Wumpus"],
+            initial_index=0,
+            on_change=self.__on_select_wumpus,
+        )
+
+        return [world_selector, agent_selector, wumpus_selector]
 
     def _render_thinking_indicator(self, surface: pygame.Surface):
         thinking_text, thinking_rect = self.text[0]
@@ -312,6 +326,12 @@ class MapSection:
         new_env["selected_agent"] = value
         return new_env
 
+    def __on_select_wumpus(self, value, env):
+        """Handle the wumpus mode selection change."""
+        new_env = {**env}
+        new_env["selected_wumpus"] = value
+        return new_env
+
     def __create_agent(self, type, map_size):
         """Create an agent based on the selected type."""
         if type == "Hybrid Agent":
@@ -327,31 +347,42 @@ class MapSection:
         new_env = {**env}
         selected_world = new_env.get("selected_world", "Random 8 x 8")
         selected_agent = new_env.get("selected_agent", "Hybrid Agent")
+        selected_wumpus = new_env.get("selected_wumpus", "Idle Wumpus")
 
         if selected_world.startswith("Random"):
             map_size = int(selected_world[-2:].strip())
-            new_env = self.__random_world(new_env, map_size, selected_agent)
+            new_env = self.__random_world(
+                new_env, map_size, selected_agent, selected_wumpus
+            )
 
         else:
             map_num = int(selected_world[-2:].strip())
-            new_env = self.__load_world(new_env, map_num, selected_agent)
+            new_env = self.__load_world(
+                new_env, map_num, selected_agent, selected_wumpus
+            )
 
         return new_env
 
-    def __load_world(self, env, map_num, agent_type: int):
+    def __load_world(self, env, map_num, agent_type, wumpus_mode):
         """Load a predefined wumpus world."""
         new_env = {**env}
 
         # TODO Load the world from a predefined source, this is a placeholder
         agent = self.__create_agent(agent_type, 8)
-        wumpus_world = WumpusWorld(agent)
+        if wumpus_mode == "Idle Wumpus":
+            wumpus_world = WumpusWorld(agent, wumpus_program=Wumpus)
+        elif wumpus_mode == "Smart Wumpus":
+            wumpus_world = WumpusWorld(agent, wumpus_program=SmartWumpus)
+        else:
+            raise ValueError(f"Unknown wumpus mode: {wumpus_mode}")
 
         new_env.update(
             {
                 "is_running": True,
                 "wumpus_world": wumpus_world,
                 "agent": agent,
-                "agent_name": agent.__class__.__name__,
+                "agent_name": agent_type,
+                "wumpus_mode": wumpus_mode,
                 "is_done": False,
                 "init_world": True,
                 "point": 0,
@@ -367,19 +398,26 @@ class MapSection:
         self.__have_new_step = False
         return new_env
 
-    def __random_world(self, env, map_size, agent_type):
+    def __random_world(self, env, map_size, agent_type, wumpus_mode):
         """Generate a random world."""
         new_env = {**env}
 
         agent = self.__create_agent(agent_type, map_size)
-        wumpus_world = WumpusWorld(agent, size=map_size)
+
+        if wumpus_mode == "Idle Wumpus":
+            wumpus_world = WumpusWorld(agent, size=map_size, wumpus_program=Wumpus)
+        elif wumpus_mode == "Smart Wumpus":
+            wumpus_world = WumpusWorld(agent, size=map_size, wumpus_program=SmartWumpus)
+        else:
+            raise ValueError(f"Unknown wumpus mode: {wumpus_mode}")
 
         new_env.update(
             {
                 "is_running": True,
                 "wumpus_world": wumpus_world,
                 "agent": agent,
-                "agent_name": agent.__class__.__name__,
+                "agent_name": agent_type,
+                "wumpus_mode": wumpus_mode,
                 "is_done": False,
                 "init_world": True,
                 "point": 0,

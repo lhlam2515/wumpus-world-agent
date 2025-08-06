@@ -17,7 +17,8 @@ def init_environment():
         "is_running": True,
         "wumpus_world": wumpus_world,
         "agent": agent,
-        "agent_name": agent.__class__.__name__,
+        "agent_name": "Hybrid Agent",
+        "wumpus_mode": "Idle Wumpus",
         "is_done": False,
         "init_world": True,
         "point": 0,
@@ -26,6 +27,7 @@ def init_environment():
         "has_gold": False,
         "selected_world": "Random 8 x 8",
         "selected_agent": "Hybrid Agent",
+        "selected_wumpus": "Idle Wumpus",
     }
 
     return env

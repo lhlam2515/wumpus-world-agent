@@ -156,7 +156,7 @@ class WumpusWorld(Environment):
             direction = random.choice([(0, 1), (1, 0), (0, -1), (-1, 0)])
             new_location = (
                 agent.location[0] + direction[0],  # type: ignore
-                agent.location[1] + direction[1],
+                agent.location[1] + direction[1],  # type: ignore
             )  # type: ignore
             agent.bump = self.move_to(agent, new_location, (Pit, Wumpus))
 
