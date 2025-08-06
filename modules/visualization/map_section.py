@@ -1,16 +1,17 @@
 import pygame
-from modules.visualization.components.world_view import WorldView
-from modules.visualization.components.world_data import WorldData
-import modules.visualization.ui_config as config
-from modules.visualization.components.button import Button
-from modules.visualization.components.selector import Selector
-from modules.visualization.components.knowledge_extractor import KnowledgeExtractor
 from modules.environment import WumpusWorld
 from modules.agent import HybridAgent, RandomAgent
 from modules.environment.entity import Wumpus, SmartWumpus
+import modules.visualization.ui_config as config
+from modules.visualization.components.world_view import WorldView
+from modules.visualization.components.world_data import WorldData
+from modules.visualization.components.button import Button
+from modules.visualization.components.selector import Selector
+from modules.visualization.components.knowledge_extractor import KnowledgeExtractor
+from modules.visualization.components.world_reader import WorldReader
 
 
-MAX_WORLD_NUM = 5
+MAX_WORLD_NUM = 3
 
 
 class MapSection:
@@ -259,15 +260,15 @@ class MapSection:
                 pos_y,
             ),
             size=config.selector["size"],
-            items=[f"World {i}" for i in range(1, MAX_WORLD_NUM + 1)]
-            + [
+            items=[
                 "Random 4 x 4",
                 "Random 8 x 8",
                 "Random 10 x 10",
                 "Random 12 x 12",
                 "Random 16 x 16",
-            ],
-            initial_index=0,
+            ]
+            + [f"World {i}" for i in range(1, MAX_WORLD_NUM + 1)],
+            initial_index=1,
             on_change=self.__on_select_world,
         )
 
@@ -342,6 +343,23 @@ class MapSection:
             raise ValueError(f"Unknown agent type: {type}")
         return agent
 
+    def __get_wumpus_class(self, wumpus_mode):
+        """Get the Wumpus class based on the selected mode."""
+        if wumpus_mode == "Idle Wumpus":
+            return Wumpus
+        elif wumpus_mode == "Smart Wumpus":
+            return SmartWumpus
+        else:
+            raise ValueError(f"Unknown wumpus mode: {wumpus_mode}")
+
+    def __get_agent_class(self, agent_type):
+        if agent_type == "Hybrid Agent":
+            return HybridAgent
+        elif agent_type == "Random Agent":
+            return RandomAgent
+        else:
+            raise ValueError(f"Unknown agent type: {agent_type}")
+
     def __create_world(self, env):
         """Create a new world based on the selected map and agent."""
         new_env = {**env}
@@ -356,7 +374,7 @@ class MapSection:
             )
 
         else:
-            map_num = int(selected_world[-2:].strip())
+            map_num = selected_world[-2:].strip()
             new_env = self.__load_world(
                 new_env, map_num, selected_agent, selected_wumpus
             )
@@ -367,14 +385,9 @@ class MapSection:
         """Load a predefined wumpus world."""
         new_env = {**env}
 
-        # TODO Load the world from a predefined source, this is a placeholder
-        agent = self.__create_agent(agent_type, 8)
-        if wumpus_mode == "Idle Wumpus":
-            wumpus_world = WumpusWorld(agent, wumpus_program=Wumpus)
-        elif wumpus_mode == "Smart Wumpus":
-            wumpus_world = WumpusWorld(agent, wumpus_program=SmartWumpus)
-        else:
-            raise ValueError(f"Unknown wumpus mode: {wumpus_mode}")
+        agent_class = self.__get_agent_class(agent_type)
+        wumpus_class = self.__get_wumpus_class(wumpus_mode)
+        agent, wumpus_world = WorldReader.read_world(map_num, agent_class, wumpus_class)
 
         new_env.update(
             {
@@ -403,13 +416,8 @@ class MapSection:
         new_env = {**env}
 
         agent = self.__create_agent(agent_type, map_size)
-
-        if wumpus_mode == "Idle Wumpus":
-            wumpus_world = WumpusWorld(agent, size=map_size, wumpus_program=Wumpus)
-        elif wumpus_mode == "Smart Wumpus":
-            wumpus_world = WumpusWorld(agent, size=map_size, wumpus_program=SmartWumpus)
-        else:
-            raise ValueError(f"Unknown wumpus mode: {wumpus_mode}")
+        wumpus = self.__get_wumpus_class(wumpus_mode)
+        wumpus_world = WumpusWorld(agent, size=map_size, wumpus_program=wumpus)
 
         new_env.update(
             {

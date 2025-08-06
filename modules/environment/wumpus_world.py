@@ -14,7 +14,10 @@ class WumpusWorld(Environment):
     ):
         super().__init__(size, size)
         self.wumpus_program = kwargs.get("wumpus_program", Wumpus)
-        self.init_world(agent_program, k_wumpus, pit_probability)
+        if things := kwargs.get("things", None):
+            self.init_world_from_map(things)
+        else:
+            self.init_world(agent_program, k_wumpus, pit_probability)
 
     def init_world(self, agent_program, k_wumpus, pit_probability):
         """Spawn agents, wumpuses, and pits in the environment."""
@@ -52,6 +55,11 @@ class WumpusWorld(Environment):
                 self.add_thing(agent, (0, 0), replace=True)
         else:
             self.add_thing(agent_program, (0, 0), replace=True)
+
+    def init_world_from_map(self, things: list[tuple[Thing, tuple[int, int]]]):
+        """Initialize the world with a predefined list of things."""
+        for thing, location in things:
+            self.add_thing(thing, location, replace=True)
 
     def get_world(self) -> Iterator[list[list[Thing]]]:
         """Return the items in the Wumpus World."""
