@@ -12,6 +12,7 @@ from modules.visualization.components.world_reader import WorldReader
 
 
 MAX_WORLD_NUM = 3
+INTERVAL_BETWEEN_STEPS = 500  # ms
 
 
 class MapSection:
@@ -35,6 +36,10 @@ class MapSection:
 
         self.__drawn_final_world = False
         self.__have_new_step = False
+        self.__needs_next_step = False
+
+        self.__previous_step_time = 0
+        self.__auto_mode = False
 
     def render(self, surface: pygame.Surface):
         """Render the main map section."""
@@ -59,11 +64,14 @@ class MapSection:
     ):
 
         new_env = {**env}
-        if new_env.get("init_world"):
+        if new_env.get("needs_init_world"):
             new_env = self.__init_world_view(new_env)
 
         new_env = self.__process_input_events(surface, event, new_env)
         new_env = self.__update_next_step_button_state(new_env)
+        self.__update_auto_step_button_state()
+
+        self.__check_next_step_due(dt)
         new_env = self.__step_world(surface, new_env)
 
         if self.__have_new_step:
@@ -83,13 +91,13 @@ class MapSection:
         if not wumpus_world or not agent:
             return
 
-        if not self.world_view or env.get("init_world", False):
+        if not self.world_view or env.get("needs_init_world", False):
             self.world_view = WorldView(self.world_position, wumpus_world.width)
             world_data = WorldData(wumpus_world.width)
             world_data.get_true_world_data(wumpus_world)
             self.world_view.update_world_data(world_data)
 
-        if not self.agent_view or env.get("init_world", False):
+        if not self.agent_view or env.get("needs_init_world", False):
             self.agent_view = WorldView(self.agent_position, wumpus_world.width)
             agent_data = WorldData(wumpus_world.width)
             agent_data.get_agent_world_data(agent)
@@ -99,7 +107,7 @@ class MapSection:
         agent = new_env["agent"]
         info = KnowledgeExtractor(agent).get_agent_info()
         new_env.update(info)
-        new_env["init_world"] = False
+        new_env["needs_init_world"] = False
         return new_env
 
     def __update_world_data(self, env):
@@ -133,14 +141,13 @@ class MapSection:
     def __init_buttons(self):
         """Initialize buttons for the main map section."""
         size = config.map_section["button_size"]
-        text_style = ["text_normal", "font_medium"]
-        pos_y = self.world_position[1] + config.world_view["board_size"] + 85
+        text_style = ["text_medium", "font_medium"]
 
         button_configs = [
             {
                 "position": (
                     self.world_position[0] + config.world_view["board_size"] // 2 + 53,
-                    pos_y,
+                    self.world_position[1] + config.world_view["board_size"] + 85,
                 ),
                 "label": "Create world",
                 "variant": "primary",
@@ -148,14 +155,24 @@ class MapSection:
             },
             {
                 "position": (
-                    self.agent_position[0]
-                    + config.world_view["board_size"] / 2
-                    - config.map_section["button_size"][0] / 2,
-                    pos_y,
+                    self.agent_position[0] + config.world_view["board_size"] / 2 + 10,
+                    self.world_position[1] + config.world_view["board_size"] + 50,
                 ),
                 "label": "Next step",
-                "variant": "primary",
+                "variant": "secondary",
                 "action": self.__next_step,
+            },
+            {
+                "position": (
+                    self.agent_position[0]
+                    + config.world_view["board_size"] / 2
+                    - config.map_section["button_size"][0]
+                    - 10,
+                    self.world_position[1] + config.world_view["board_size"] + 50,
+                ),
+                "label": "Auto step",
+                "variant": "primary",
+                "action": self.__toggle_auto_mode,
             },
         ]
 
@@ -173,12 +190,21 @@ class MapSection:
 
     def __update_next_step_button_state(self, env):
         next_step_button = self.buttons[1]
-        if env.get("is_done"):
+        if env.get("is_done") or self.__auto_mode:
             next_step_button.disabled = True
         else:
             next_step_button.disabled = False
 
         return env
+
+    def __update_auto_step_button_state(self):
+        auto_step_button = self.buttons[2]
+        if self.__auto_mode:
+            auto_step_button.label = "Stop Auto"
+            auto_step_button.variant = "tertiary"
+        else:
+            auto_step_button.label = "Auto Step"
+            auto_step_button.variant = "primary"
 
     def __process_input_events(self, surface: pygame.Surface, events, env):
         new_env = {**env}
@@ -218,9 +244,12 @@ class MapSection:
         thinking_text = text_font.render("Thinking...", True, config.colors["red"])
         thinking_rect = thinking_text.get_rect()
 
-        button_pos = self.buttons[1].position
-        thinking_rect.centerx = button_pos[0] + self.buttons[1].size[0] // 2
-        thinking_rect.bottom = button_pos[1] - 10
+        thinking_rect.centerx = (
+            self.agent_position[0] + config.world_view["board_size"] // 2
+        )
+        thinking_rect.top = (
+            self.agent_position[1] + config.world_view["board_size"] + 10
+        )
         text.append((thinking_text, thinking_rect))
 
         # Initialize world title text
@@ -309,11 +338,18 @@ class MapSection:
 
     def __next_step(self, env):
         """Trigger the next step in the solution process."""
-        new_env = {**env}
-        if new_env.get("is_done", False):
-            return new_env
-        new_env["next_step"] = True
-        return new_env
+        if not env.get("is_done", False) and not self.__auto_mode:
+            self.__needs_next_step = True
+
+        return env
+
+    def __toggle_auto_mode(self, env):
+        self.__auto_mode = not self.__auto_mode
+        if self.__auto_mode:
+            self.__previous_step_time = 0
+            self.__needs_next_step = False
+
+        return env
 
     def __on_select_world(self, value, env):
         """Handle the map selection change."""
@@ -397,18 +433,19 @@ class MapSection:
                 "agent_name": agent_type,
                 "wumpus_mode": wumpus_mode,
                 "is_done": False,
-                "init_world": True,
+                "needs_init_world": True,
                 "point": 0,
                 "step_count": 0,
                 "has_arrow": True,
                 "has_gold": False,
                 "kb_size": "N/A",
-                "next_step": False,
             }
         )
 
+        self.__auto_mode = False
         self.__drawn_final_world = False
         self.__have_new_step = False
+        self.__needs_next_step = False
         return new_env
 
     def __random_world(self, env, map_size, agent_type, wumpus_mode):
@@ -427,24 +464,34 @@ class MapSection:
                 "agent_name": agent_type,
                 "wumpus_mode": wumpus_mode,
                 "is_done": False,
-                "init_world": True,
+                "needs_init_world": True,
                 "point": 0,
                 "step_count": 0,
                 "has_arrow": True,
                 "has_gold": False,
                 "kb_size": "N/A",
-                "next_step": False,
             }
         )
 
+        self.__auto_mode = False
         self.__drawn_final_world = False
         self.__have_new_step = False
+        self.__needs_next_step = False
         return new_env
 
+    def __check_next_step_due(self, dt):
+        """Check if the next step is due based on the time elapsed."""
+        if self.__auto_mode:
+            self.__previous_step_time += dt
+            if self.__previous_step_time >= INTERVAL_BETWEEN_STEPS:
+                self.__previous_step_time = 0
+                self.__needs_next_step = True
+
     def __step_world(self, surface: pygame.Surface, env):
+        if env.get("is_done", False) or not self.__needs_next_step:
+            return env
+
         new_env = {**env}
-        if new_env.get("is_done", False) or not new_env.get("next_step", False):
-            return new_env
 
         wumpus_world = new_env.get("wumpus_world")
         if wumpus_world:
@@ -456,7 +503,7 @@ class MapSection:
             wumpus_world.step()
 
             new_env["step_count"] += 1
-            new_env["next_step"] = False
+            self.__needs_next_step = False
             self.__have_new_step = True
 
         return new_env

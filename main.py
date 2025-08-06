@@ -20,7 +20,7 @@ def init_environment():
         "agent_name": "Hybrid Agent",
         "wumpus_mode": "Idle Wumpus",
         "is_done": False,
-        "init_world": True,
+        "needs_init_world": True,
         "point": 0,
         "step_count": 0,
         "has_arrow": True,
@@ -33,7 +33,7 @@ def init_environment():
     return env
 
 
-def initialize(env):
+def initialize():
     main_section = MapSection(config.map_section["position"])
     info_section = InfoSection(config.info_section["position"])
     return (main_section, info_section)
@@ -82,7 +82,7 @@ def main():
     clock = pygame.time.Clock()
 
     env = init_environment()
-    ui_sections = initialize(env)
+    ui_sections = initialize()
 
     dt = 0
     while env["is_running"]:
