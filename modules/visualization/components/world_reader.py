@@ -1,3 +1,4 @@
+import os
 from modules.environment.wumpus_world import WumpusWorld
 from modules.environment.entity import Thing, Gold, Pit, Wumpus, SmartWumpus
 from modules.agent import HybridAgent, RandomAgent
@@ -23,8 +24,12 @@ class WorldReader:
     P.....G.
     ....P...
     .....P..
-
     """
+
+    @staticmethod
+    def count_file() -> int:
+        """Count the number of Wumpus World files available."""
+        return len([f for f in os.listdir("test_case") if f.endswith(".txt")])
 
     @staticmethod
     def read_world(
@@ -33,7 +38,7 @@ class WorldReader:
         wumpus_class: type[Wumpus | SmartWumpus],
     ) -> tuple[HybridAgent | RandomAgent, WumpusWorld]:
         """Read the Wumpus World from a file and return the environment."""
-        file_name = "world_map/" + world_name + ".txt"
+        file_name = "test_case/" + world_name + ".txt"
         with open(file_name, "r") as file:
             lines = file.readlines()
 
