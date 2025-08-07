@@ -11,7 +11,6 @@ from modules.visualization.components.knowledge_extractor import KnowledgeExtrac
 from modules.visualization.components.world_reader import WorldReader
 
 
-MAX_WORLD_NUM = 3
 INTERVAL_BETWEEN_STEPS = 500  # ms
 
 
@@ -30,16 +29,17 @@ class MapSection:
             + config.map_section["board_spacing"],
             position[1] + 50,
         )
-        self.buttons = self.__init_buttons()
-        self.text = self.__init_text()
-        self.selectors = self.__init_selectors()
 
+        self.__max_world_num = WorldReader.count_file()
         self.__drawn_final_world = False
         self.__have_new_step = False
         self.__needs_next_step = False
-
         self.__previous_step_time = 0
         self.__auto_mode = False
+
+        self.buttons = self.__init_buttons()
+        self.text = self.__init_text()
+        self.selectors = self.__init_selectors()
 
     def render(self, surface: pygame.Surface):
         """Render the main map section."""
@@ -296,7 +296,7 @@ class MapSection:
                 "Random 12 x 12",
                 "Random 16 x 16",
             ]
-            + [f"World {i}" for i in range(1, MAX_WORLD_NUM + 1)],
+            + [f"World {i}" for i in range(1, self.__max_world_num + 1)],
             initial_index=1,
             on_change=self.__on_select_world,
         )
