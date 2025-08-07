@@ -84,7 +84,7 @@ class HybridAgent(Explorer):
 
         self.plan = []  # Reset plan due to dynamic environment
         if (time + 1) % 5 == 0:
-            safe_positions -= set(pos for pos in self.stench_positions)
+            safe_positions -= {pos for pos in self.stench_positions - {(x, y)}}
 
         if self.kb.ask_if_true([glitter()]):
             goals = (0, 0)
