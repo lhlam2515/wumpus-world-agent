@@ -151,9 +151,9 @@ class HybridAgent(Explorer):
             x, y = pos
             for p in range(0, self.size):
                 if p < x and (p, y) in allowed:
-                    shoot_positions.append(Position(p, y, Orientation.WEST))
-                if p > x and (p, y) in allowed:
                     shoot_positions.append(Position(p, y, Orientation.EAST))
+                if p > x and (p, y) in allowed:
+                    shoot_positions.append(Position(p, y, Orientation.WEST))
                 if p < y and (x, p) in allowed:
                     shoot_positions.append(Position(x, p, Orientation.NORTH))
                 if p > y and (x, p) in allowed:
@@ -161,10 +161,10 @@ class HybridAgent(Explorer):
 
         if not shoot_positions and sub_positions:
             for x, y in sub_positions:
+                shoot_positions.append(Position(x, y, Orientation.EAST))
+                shoot_positions.append(Position(x, y, Orientation.WEST))
                 shoot_positions.append(Position(x, y, Orientation.NORTH))
                 shoot_positions.append(Position(x, y, Orientation.SOUTH))
-                shoot_positions.append(Position(x, y, Orientation.WEST))
-                shoot_positions.append(Position(x, y, Orientation.EAST))
 
         if not shoot_positions:
             return []
