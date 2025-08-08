@@ -10,30 +10,29 @@ class WumpusWorld(Environment):
     """A Wumpus World environment for the Wumpus World agent."""
 
     def __init__(
-        self, agent_program, size=8, k_wumpus=2, pit_probability=0.2, **kwargs
+        self, agent_program, size=8, k_wumpus=2, pit_density=0.2, **kwargs
     ):
         super().__init__(size, size)
         self.wumpus_program = kwargs.get("wumpus_program", Wumpus)
         if things := kwargs.get("things", None):
             self.init_world_from_map(things)
         else:
-            self.init_world(agent_program, k_wumpus, pit_probability)
+            self.init_world(agent_program, k_wumpus, pit_density)
 
-    def init_world(self, agent_program, k_wumpus, pit_probability):
+    def init_world(self, agent_program, k_wumpus, pit_density):
         """Spawn agents, wumpuses, and pits in the environment."""
         pit_locations = []
         wumpus_locations = []
 
         # Spawn pits in the environment
-        for x, y in product(range(self.width), repeat=2):
-            if random.random() > pit_probability:
-                continue
+        num_pits = int(self.width * self.height * pit_density)
+        while len(pit_locations) < num_pits:
+            location = self.random_location(
+                exclude=[(0, 0), (1, 0), (0, 1)]
+            )
 
-            if (x, y) in [(0, 0), (1, 0), (0, 1)]:
-                continue  # Don't place pits at the starting location
-
-            self.add_thing(Pit(), (x, y))
-            pit_locations.append((x, y))
+            if self.add_thing(Pit(), location):
+                pit_locations.append(location)
 
         # Spawn wumpuses in the environment
         while len(wumpus_locations) < k_wumpus:
@@ -92,7 +91,8 @@ class WumpusWorld(Environment):
             percepts["glitter"] = True
 
         # Check for scream (wumpus death)
-        wumpuses = [thing for thing in self.things if isinstance(thing, Wumpus)]
+        wumpuses = [
+            thing for thing in self.things if isinstance(thing, Wumpus)]
         for wumpus in wumpuses:
             if not wumpus.alive and not wumpus.screamed:
                 percepts["scream"] = True
@@ -142,10 +142,12 @@ class WumpusWorld(Environment):
             if agent.has_arrow:
                 arrow_travel = Action.forward(agent.position)
                 while self.is_inbounds(arrow_travel.location):
-                    wumpus = self._list_things_at(arrow_travel.location, Wumpus)
+                    wumpus = self._list_things_at(
+                        arrow_travel.location, Wumpus)
                     if wumpus:
                         wumpus[0].alive = False  # type: ignore
-                        print(f"Wumpus at {arrow_travel.location} has been killed!")
+                        print(
+                            f"Wumpus at {arrow_travel.location} has been killed!")
                         break
                     arrow_travel = Action.forward(arrow_travel)
                 agent.has_arrow = False
@@ -183,7 +185,8 @@ class WumpusWorld(Environment):
 
     def is_done(self):
         """Check if the environment is in a terminal state."""
-        explorer = [agent for agent in self.agents if isinstance(agent, Explorer)]
+        explorer = [
+            agent for agent in self.agents if isinstance(agent, Explorer)]
         # Check if all explorers are dead or have climbed out
         if explorer:
             if all(self.in_danger(agent) or not agent.alive for agent in explorer):
