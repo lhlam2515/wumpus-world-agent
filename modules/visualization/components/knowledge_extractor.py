@@ -14,6 +14,7 @@ class KnowledgeExtractor:
         self.world_size = agent.size if hasattr(agent, "size") else size if size else 0
         self.gold_position = None
         self.has_arrow_previously = True
+        self.hear_scream_previously = False
 
     def get_safe_cells(self):
         """Get all cells known to be safe."""
@@ -46,7 +47,9 @@ class KnowledgeExtractor:
         just_shot = not self.agent.has_arrow and self.has_arrow_previously
         self.has_arrow_previously = self.agent.has_arrow
 
-        hear_scream = Clause(scream()) in self.kb
+        percept_scream = Clause(scream()) in self.kb
+        just_hear_scream = percept_scream and not self.hear_scream_previously
+        self.hear_scream_previously = percept_scream
 
         for i in range(self.world_size):
             for j in range(self.world_size):
@@ -92,7 +95,7 @@ class KnowledgeExtractor:
                                 "has_gold": self.agent.has_gold,
                                 "alive": self.agent.alive,
                                 "shoot_arrow": just_shot,
-                                "hear_scream": hear_scream,
+                                "hear_scream": just_hear_scream,
                             },
                         }
                     )
