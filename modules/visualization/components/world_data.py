@@ -13,6 +13,7 @@ class WorldData:
         self.visited_cells = None
         self.world_size = world_size
         self.knowledge_extractor = None
+        self.has_arrow_previously = True
 
     def get_true_world_data(self, world: WumpusWorld):
         """Set the true world data."""
@@ -23,6 +24,11 @@ class WorldData:
         for thing in world.things:
             y, x = thing.location
             if isinstance(thing, (Explorer, HybridAgent)):
+                just_shot = False
+                if not thing.has_arrow and self.has_arrow_previously:
+                    self.has_arrow_previously = False
+                    just_shot = True
+
                 world_data[x][y].append(
                     {
                         "name": "Agent",
@@ -34,6 +40,7 @@ class WorldData:
                             ),
                             "has_gold": thing.has_gold,
                             "alive": thing.alive,
+                            "shoot_arrow": just_shot,
                         },
                     }
                 )
