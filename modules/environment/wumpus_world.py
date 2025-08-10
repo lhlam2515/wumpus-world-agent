@@ -90,13 +90,14 @@ class WumpusWorld(Environment):
         if any(self._list_things_at(agent.location, Gold)):
             percepts["glitter"] = True
 
-        # Check for scream (wumpus death)
-        wumpuses = [
-            thing for thing in self.things if isinstance(thing, Wumpus)]
-        for wumpus in wumpuses:
-            if not wumpus.alive and not wumpus.screamed:
-                percepts["scream"] = True
-                wumpus.screamed = True
+        # Check for scream (wumpus death) with Explorer
+        if isinstance(agent, Explorer):
+            wumpuses = [
+                thing for thing in self.things if isinstance(thing, Wumpus)]
+            for wumpus in wumpuses:
+                if not wumpus.alive and not wumpus.screamed:
+                    percepts["scream"] = True
+                    wumpus.screamed = True
 
         if not isinstance(agent, Wumpus):
             return percepts
