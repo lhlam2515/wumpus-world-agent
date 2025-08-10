@@ -89,6 +89,7 @@ class HybridAgent(Explorer):
 
         if self.kb.ask_if_true([glitter()]):
             goals = (0, 0)
+            self.plan = []
             self.plan.append(Action.GRAB) if not self.has_gold else None
             temp = self.plan_route(self.position, goals, safe_positions)
             self.plan.extend(temp)
