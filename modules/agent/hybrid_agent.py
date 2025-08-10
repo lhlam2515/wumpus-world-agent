@@ -1,4 +1,5 @@
 from itertools import product
+import random
 from modules.inference.knowledge import KnowledgeBase
 from modules.planning.bayes_net import BayesNet, BayesNode, elimination_ask
 from modules.utils import Orientation, Position, Action
@@ -130,7 +131,13 @@ class HybridAgent(Explorer):
             start = (0, 0)
             temp = self.plan_route(self.position, start, safe_positions)
             self.plan.extend(temp)
-            self.plan.append(Action.CLIMB)
+            self.plan.append(Action.CLIMB) if temp else None
+
+        if len(self.plan) == 0:
+            print("No plan available, taking a random action.")
+            action = random.choice(
+                [Action.FORWARD, Action.TURN_LEFT, Action.TURN_RIGHT])
+            return action
 
         action = self.plan[0]
         self.plan = self.plan[1:]
