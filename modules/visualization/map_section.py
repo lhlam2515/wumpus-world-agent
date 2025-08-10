@@ -296,7 +296,7 @@ class MapSection:
                 "Random 12 x 12",
                 "Random 16 x 16",
             ]
-            + [f"World {i}" for i in range(1, self.__max_world_num + 1)],
+            + [f"World {i}" for i in range(self.__max_world_num)],
             initial_index=1,
             on_change=self.__on_select_world,
         )
