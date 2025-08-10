@@ -81,7 +81,8 @@ class WorldReader:
         if gold_count != 1:
             raise ValueError("The map must contain exactly one gold.")
 
-        agent = agent_class(size=size, k_wumpus=wumpus_count, pit_prob=pit_count / size)
+        agent = agent_class(size=size, k_wumpus=wumpus_count,
+                            pit_prob=pit_count / size**2)
         world_things.append((agent, (0, 0)))
 
         return agent, WumpusWorld(None, size=size, things=world_things)
