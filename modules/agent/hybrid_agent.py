@@ -28,6 +28,15 @@ class HybridAgent(Explorer):
         return positions
 
     @property
+    def uncertain_positions(self):
+        """Get the uncertain positions in the knowledge base."""
+        position = set()
+        for pos in self.visited | self.frontier:
+            if self.kb.ask_if_true([~wumpus(*pos), ~pit(*pos)]) is None:
+                position.add(pos)
+        return position
+
+    @property
     def wumpus_positions(self):
         """Get the positions of the wumpuses."""
         positions = set()
@@ -78,15 +87,24 @@ class HybridAgent(Explorer):
         self.k_wumpus -= 1 if percept.get("scream", False) else 0
 
         self.visited.add((x, y))
+        # Visited positions should be safe
+        self.visited = {pos for pos in self.visited
+                        if pos in self.safe_positions}
+
         self.frontier.update(self._neighbors(x, y))
         self.frontier.difference_update(self.visited)
+        # Should include uncertain positions
+        self.frontier.update(self.uncertain_positions)
 
         safe_positions = self.safe_positions
 
-        if (time + 1) % 5 == 0:
-            safe_positions -= {pos for pos in self.stench_positions - {(x, y)}}
-        elif time > 0 and time % 5 == 0:
-            self.plan = []  # Reset plan due to dynamic environment
+        self.plan = []  # Reset plan due to dynamic environment
+
+        print(f"==================Current time step {time}===================")
+        print(f"Current position: {self.position}")
+        print(f"Does current position is safe: {(x, y) in safe_positions}")
+        print(f"Safe positions: {safe_positions}")
+        print(f"Stench positions: {self.stench_positions}")
 
         if self.kb.ask_if_true([glitter()]):
             goals = (0, 0)
@@ -94,10 +112,13 @@ class HybridAgent(Explorer):
             self.plan.append(Action.GRAB) if not self.has_gold else None
             temp = self.plan_route(self.position, goals, safe_positions)
             self.plan.extend(temp)
-            self.plan.append(Action.CLIMB)
+            if self.has_gold and self.location == goals:
+                self.plan.append(Action.CLIMB)
 
         if len(self.plan) == 0:
+            print("Planning to explore unvisited safe positions...")
             unvisited_safe = self.frontier.intersection(safe_positions)
+            print(f"Unvisited safe positions: {unvisited_safe}")
 
             temp = self.plan_route(
                 self.position, unvisited_safe, safe_positions
@@ -105,16 +126,14 @@ class HybridAgent(Explorer):
             self.plan.extend(temp)
 
         if len(self.plan) == 0:
-            uncertain_positions = set(self.frontier) - set(safe_positions)
-            uncertain_positions -= self.pit_positions
-            uncertain_positions -= self.wumpus_positions
-
+            print("Planning to explore uncertain positions...")
             temp = self.plan_uncertain(
-                self.position, uncertain_positions, safe_positions
+                self.position, self.uncertain_positions, safe_positions
             )
             self.plan.extend(temp)
 
         if len(self.plan) == 0 and self.has_arrow:
+            print("Planning to shoot at Wumpus positions...")
             temp = self.plan_shot(
                 self.position, self.wumpus_positions, safe_positions,
                 sub_positions=self.stench_positions
@@ -122,16 +141,18 @@ class HybridAgent(Explorer):
             self.plan.extend(temp)
 
         if len(self.plan) == 0 and self.kb.ask_if_true([scream()]):
+            print(f"Planning to respond to scream...")
             temp = self.plan_route(
                 self.position, self.stench_positions, safe_positions
             )
             self.plan.extend(temp)
 
         if len(self.plan) == 0:
+            print(f"Planning to return to the start position...")
             start = (0, 0)
             temp = self.plan_route(self.position, start, safe_positions)
             self.plan.extend(temp)
-            self.plan.append(Action.CLIMB) if temp else None
+            self.plan.append(Action.CLIMB) if self.location == start else None
 
         if len(self.plan) == 0:
             print("No plan available, taking a random action.")
@@ -141,13 +162,15 @@ class HybridAgent(Explorer):
 
         action = self.plan[0]
         self.plan = self.plan[1:]
+
+        print(f"Making a decision to take an action: {action}")
         return action
 
     def plan_route(self, current, goals, allowed):
         """Plan a route from the current position to the goals."""
         if isinstance(goals, (list, set)) and len(goals) == 0:
             return []
-
+        print("Planning route...")
         from modules.planning import RoutePlanner
         planner = RoutePlanner(current, goals, allowed, self.size)
         return planner.plan_route()
