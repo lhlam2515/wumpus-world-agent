@@ -1,6 +1,6 @@
 """Knowledge extractor for visualization."""
 
-from typing import Set, Tuple, Dict, Any
+from typing import Dict, Any
 from modules.inference.logic import scream, wumpus, pit, breeze, stench, glitter, Clause
 
 
@@ -18,15 +18,11 @@ class KnowledgeExtractor:
 
     def get_safe_cells(self):
         """Get all cells known to be safe."""
-        return (
-            set(self.agent.safe_positions)
-            if hasattr(self.agent, "safe_positions")
-            else None
-        )
+        return getattr(self.agent, "safe_positions", set())
 
     def get_visited_cells(self):
         """Get all cells the agent has visited."""
-        return set(self.agent.visited) if hasattr(self.agent, "visited") else None
+        return getattr(self.agent, "visited", set())
 
     def get_known_entities(self):
         """Get all known entities from the knowledge base using bitmasks for caching."""
