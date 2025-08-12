@@ -56,7 +56,7 @@ class InfoSection:
             "Breeze": "Blue wavy line",
             "Stench": "Red wavy line",
             "Safe": "Green cell",
-            "Visited": "White cell",
+            "Safe visited": "White cell",
             "Unknown": "Gray cell",
         }
 
