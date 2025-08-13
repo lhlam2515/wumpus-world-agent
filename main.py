@@ -3,9 +3,7 @@ import pygame
 
 from modules.agent import HybridAgent
 from modules.environment import WumpusWorld
-from modules.visualization.map_section import MapSection
-from modules.visualization.info_section import InfoSection
-import modules.visualization.ui_config as config
+from modules.visualization import InfoSection, MapSection, config
 
 
 def init_environment():
