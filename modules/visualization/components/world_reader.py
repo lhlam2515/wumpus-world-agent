@@ -29,7 +29,7 @@ class WorldReader:
     @staticmethod
     def count_file() -> int:
         """Count the number of Wumpus World files available."""
-        return len([f for f in os.listdir("test_case") if f.endswith(".txt")])
+        return len([f for f in os.listdir("testcases") if f.endswith(".txt")])
 
     @staticmethod
     def read_world(
@@ -38,7 +38,7 @@ class WorldReader:
         wumpus_class: type[Wumpus | SmartWumpus],
     ) -> tuple[HybridAgent | RandomAgent, WumpusWorld]:
         """Read the Wumpus World from a file and return the environment."""
-        file_name = "test_case/" + world_name + ".txt"
+        file_name = "testcases/" + world_name + ".txt"
         with open(file_name, "r") as file:
             lines = file.readlines()
 
