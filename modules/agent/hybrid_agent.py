@@ -1,9 +1,9 @@
-from itertools import product
 import random
-from modules.inference.knowledge import KnowledgeBase
-from modules.planning.bayes_net import BayesNet, BayesNode, elimination_ask
+from itertools import product
+
+from modules.inference import KnowledgeBase, wumpus, pit, breeze, stench, glitter, scream
+from modules.planning import BayesNet, BayesNode, elimination_ask
 from modules.utils import Orientation, Position, Action
-from modules.inference import wumpus, pit,  breeze, stench, glitter, scream
 from modules.environment import Explorer
 
 

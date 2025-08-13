@@ -1,5 +1,5 @@
 from random import choice
-from modules.agent.hybrid_agent import HybridAgent
+from .hybrid_agent import HybridAgent
 
 
 class RandomAgent(HybridAgent):
