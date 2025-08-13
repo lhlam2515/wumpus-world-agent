@@ -1,185 +1,102 @@
 # Wumpus World Agent
 
-An intelligent AI agent implementation for the classic Wumpus World problem using logical inference, path planning, and knowledge representation.
+A Python implementation of an intelligent agent navigating through the classic AI problem environment "Wumpus World" with visualization.
 
-## 🎯 Project Overview
+## Project Overview
 
-This project implements a sophisticated AI agent that navigates the dangerous Wumpus World using logical reasoning and strategic planning. The agent combines knowledge-based inference, A* pathfinding, and reactive behaviors to safely explore the environment, collect gold, and escape alive.
+This project implements a Wumpus World environment with various types of agents (Hybrid Agent and Random Agent) that try to navigate a dangerous world to find gold. The environment is visualized using Pygame, allowing users to observe the agent's performance in real-time.
 
-### Key Features
+### What is Wumpus World?
 
-- **Hybrid Intelligent Agent**: Combines logical reasoning with path planning
-- **Knowledge-Based Inference**: Uses propositional logic and formal reasoning
-- **A* Path Planning**: Optimal pathfinding through safe areas
-- **Real-time Visualization**: ASCII-based display of world state and agent knowledge
-- **Configurable Environments**: Adjustable grid size, hazard probability, and difficulty
-- **Baseline Comparison**: Random agent for performance evaluation
+Wumpus World is a classic AI problem where an agent navigates through a grid-based world containing:
 
-## 🏛️ Architecture
+- One or more Wumpuses (monsters that kill the agent if encountered)
+- Pits (which the agent must avoid falling into)
+- Gold (the treasure the agent is seeking)
+- Various environmental clues like stench (near Wumpus), breeze (near pit), and glitter (near gold)
 
-The project follows a modular, object-oriented design with clear separation of concerns:
+The agent must use knowledge representation, logical inference, and planning to navigate safely and find the gold.
 
-```plaintext
-wumpus-world-agent/
-├── modules/
-│   ├── agent.py           # Intelligent and random agent implementations
-│   ├── environment.py     # Wumpus World simulation environment
-│   ├── perception.py      # Sensory data structures and actions
-│   ├── inference.py       # Knowledge base and logical inference
-│   ├── planning.py        # A* pathfinding and action planning
-│   ├── visualization.py   # ASCII-based world visualization
-│   ├── logic.py           # Propositional logic utilities
-│   └── utils.py           # Common data structures and utilities
-├── main.py                # Main application entry point
-├── requirements.txt       # Python dependencies
-└── README.md              # Project documentation
+## Features
+
+- Interactive visualization built with Pygame
+- Multiple agent implementations:
+  - Hybrid Agent (using knowledge base, logical inference, and planning)
+  - Random Agent (simpler movement strategy)
+- Customizable world settings:
+  - Adjustable grid size
+  - Configurable number of Wumpuses
+  - Adjustable pit probability
+- Included test cases for reproducible scenarios
+
+## Requirements
+
+- Python 3.8+
+- pygame >= 2.0.0
+
+## Installation
+
+1. Clone this repository:
+
+```bash
+git clone https://github.com/lhlam2515/wumpus-world-agent.git
+cd wumpus-world-agent
 ```
 
-### Core Components
+1. Install the required dependencies:
 
-#### 🤖 Agent (`modules/agent.py`)
+```bash
+pip install -r requirements.txt
+```
 
-- **Agent**: Hybrid intelligent agent with logical reasoning
-- **RandomAgent**: Baseline random behavior for comparison
+## Usage
 
-#### 🌍 Environment (`modules/environment.py`)
+Run the main script to start the application:
 
-- **Environment**: Complete Wumpus World simulation
-- **Cell**: Individual grid cell with hazards and objectives
+```bash
+python main.py
+```
 
-#### 👁️ Perception (`modules/perception.py`)
+### Controls
 
-- **Percept**: Sensory information (breeze, stench, glitter, etc.)
-- **Action**: Available agent actions (move, turn, shoot, grab, climb)
+The visualization interface has two main sections:
 
-#### 🧠 Inference (`modules/inference.py`)
+- Map Section: Displays the Wumpus world grid and agent's position
+- Info Section: Shows controls and information about the agent's status
 
-- **KnowledgeBase**: Propositional logic knowledge representation
-- **InferenceEngine**: Logical reasoning for safety and danger inference
+You can interact with the application through the interface to:
 
-#### 🗺️ Planning (`modules/planning.py`)
+- Select different agents (Hybrid or Random)
+- Choose different world configurations (Random or Predefined)
+- Control the agent's actions
+- Reset the world
 
-- **Planner**: A* search for optimal safe pathfinding
+## Project Structure
 
-#### 📺 Visualization (`modules/visualization.py`)
+- `main.py` - Entry point for the application
+- `modules/` - Core implementation modules:
+  - `agent/` - Agent implementations (Hybrid and Random)
+  - `environment/` - Environment and entity classes
+  - `inference/` - Knowledge representation and logical inference
+  - `planning/` - Path planning and problem-solving
+  - `visualization/` - UI components and configuration
+- `assets/` - Fonts and other resources
+- `testcases/` - Predefined world configurations for testing
 
-- **Visualizer**: ASCII display of world state and agent knowledge
+## How It Works
 
-## 🎮 Wumpus World Rules
+The Hybrid Agent uses:
 
-### Environment
+1. Knowledge representation to keep track of visited cells and what it knows about the environment
+2. Logical inference to deduce safe paths and dangerous areas
+3. Planning to find optimal routes to goals or explore new areas
 
-- **Grid**: N×N cells with (0,0) as safe starting position
-- **Hazards**: Randomly placed pits and wumpuses
-- **Objective**: Single gold piece placed randomly
-- **Goal**: Collect gold and return to (0,0) to exit safely
+The agent perceives its environment, updates its knowledge base, plans its next move, and executes actions to navigate the world safely while seeking gold.
 
-### Agent Capabilities
+## Running Test Cases
 
-- **Movement**: Forward movement in current direction
-- **Rotation**: Turn left or right (90-degree turns)
-- **Shooting**: Fire arrow to kill wumpus (one shot only)
-- **Collection**: Grab gold when in same cell
-- **Exit**: Climb out at starting position
+The application includes several predefined world configurations in the `testcases/` directory. You can select these through the interface to test the agent's performance in specific scenarios.
 
-### Percepts
+## Acknowledgments
 
-- **Breeze**: Felt when adjacent to pit
-- **Stench**: Smelled when adjacent to live wumpus
-- **Glitter**: Seen when gold is in current cell
-- **Bump**: Felt when attempting to move through wall
-- **Scream**: Heard when arrow kills wumpus
-
-### Death Conditions
-
-- Falling into a pit
-- Entering cell with live wumpus
-- Being eaten by wumpus
-
-## 🧠 AI Approach
-
-### Logical Inference
-
-The agent uses propositional logic to reason about the world:
-
-1. **Physics Rules**: Encodes relationships between percepts and hazards
-   - `Breeze(x,y) ↔ (Pit(x-1,y) ∨ Pit(x+1,y) ∨ Pit(x,y-1) ∨ Pit(x,y+1))`
-   - `Stench(x,y) ↔ (Wumpus(x-1,y) ∨ Wumpus(x+1,y) ∨ Wumpus(x,y-1) ∨ Wumpus(x,y+1))`
-
-2. **Knowledge Updates**: Add percept information as logical facts
-3. **Inference**: Use forward chaining and DPLL to derive new knowledge
-4. **Safety Analysis**: Prove which cells are safe or dangerous
-
-### Path Planning
-
-The agent uses A* search for optimal navigation:
-
-1. **Search Space**: Grid cells as nodes, adjacency as edges
-2. **Heuristic**: Manhattan distance to goal
-3. **Constraints**: Only move through provably safe cells
-4. **Action Generation**: Convert position path to movement actions
-
-### Decision Making
-
-The agent follows a sophisticated decision cycle:
-
-1. **Perceive**: Collect sensory information
-2. **Update**: Add new facts to knowledge base
-3. **Infer**: Derive safety and danger information
-4. **Plan**: Generate optimal path to goals
-5. **Act**: Execute next planned action
-
-## 📊 Performance Metrics
-
-### Success Criteria
-
-- **Victory**: Agent collects gold and exits alive
-- **Efficiency**: Minimize steps taken to complete mission
-- **Safety**: Avoid death from hazards
-- **Knowledge**: Maximize world understanding with minimal exploration
-
-### Comparison Baselines
-
-- **Random Agent**: Random action selection for baseline comparison
-- **Manual Control**: Human player performance benchmarks
-- **Optimal Solution**: Theoretical minimum steps for perfect information
-
-## 🛠️ Development
-
-### Project Status
-
-This project contains comprehensive Google-style docstrings and architectural specifications for all components. The implementation is designed to be completed by following the detailed specifications in each module.
-
-### Implementation Roadmap
-
-1. **Environment Core** (`environment.py`)
-   - [ ] Grid generation and hazard placement
-   - [ ] Agent state tracking and action execution
-   - [ ] Percept generation and game logic
-
-2. **Logical Inference** (`inference.py`)
-   - [ ] Knowledge base initialization with physics rules
-   - [ ] Percept-to-logic conversion
-   - [ ] Forward chaining and DPLL inference algorithms
-
-3. **Path Planning** (`planning.py`)
-   - [ ] A* search implementation
-   - [ ] Action sequence generation
-   - [ ] Safety-constrained navigation
-
-4. **Agent Intelligence** (`agent.py`)
-   - [ ] Main control loop and decision cycle
-   - [ ] Goal management and prioritization
-   - [ ] Integration of inference and planning
-
-5. **Visualization** (`visualization.py`)
-   - [ ] ASCII grid rendering
-   - [ ] Agent knowledge display
-   - [ ] Real-time animation support
-
-## 📚 References
-
-- Russell, S. & Norvig, P. "Artificial Intelligence: A Modern Approach" (Chapter 7: Logical Agents)
-- Wumpus World problem specification
-- Propositional logic and inference algorithms
-- A* search and pathfinding techniques
+- Based on the Wumpus World problem as described in "Artificial Intelligence: A Modern Approach" by Stuart Russell and Peter Norvig
