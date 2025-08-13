@@ -1,6 +1,5 @@
 from .knowledge import KnowledgeBase
 from .logic import *
-from .infer_engine import InferEngine, DPLLEngine
 
 __all__ = [
     'KnowledgeBase',
@@ -13,6 +12,4 @@ __all__ = [
     'glitter',
     'bump',
     'scream',
-    'InferEngine',
-    'DPLLEngine'
 ]
