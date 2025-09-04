@@ -1,10 +1,23 @@
-from .logic import *
+from .logic import Literal, Clause, wumpus, pit, glitter, scream, breeze, stench
 
 
 class KnowledgeBase:
-    """Knowledge Base for Wumpus World."""
+    """A Knowledge Base for reasoning in the Wumpus World.
+
+    This class stores logical clauses and provides methods for adding new
+    information (telling), querying, and performing inference.
+
+    Attributes:
+        size (int): The size of the Wumpus World grid.
+        clauses (set[Clause]): The set of clauses in the knowledge base.
+    """
 
     def __init__(self, size=8):
+        """Initializes the KnowledgeBase.
+
+        Args:
+            size (int, optional): The size of the world grid. Defaults to 8.
+        """
         self.size = size
 
         # Initialize the knowledge base with clauses
@@ -29,7 +42,14 @@ class KnowledgeBase:
         return "\n".join(repr(clause) for clause in sorted(self.clauses, key=lambda c: repr(c)))
 
     def tell(self, *clauses):
-        """Add new clauses to the knowledge base."""
+        """Add new clauses to the knowledge base and perform inference.
+
+        Args:
+            *clauses: A variable number of Literal or Clause objects to add.
+
+        Raises:
+            ValueError: If an object of an unexpected type is passed.
+        """
         if not all(isinstance(clause, (Literal, Clause)) for clause in clauses):
             raise ValueError(
                 "Unexpected clause type. Must be Literal or Clause."
@@ -55,7 +75,17 @@ class KnowledgeBase:
         self.infer()
 
     def tell_percept(self, i, j, percepts: dict[str, bool]):
-        """Tell the knowledge base about a percept at (i, j)."""
+        """Tell the knowledge base about percepts at a given location.
+
+        This method adds clauses based on the provided percepts and also adds
+        the general knowledge (axioms) about the Wumpus World rules related
+        to those percepts.
+
+        Args:
+            i (int): The row of the agent's location.
+            j (int): The column of the agent's location.
+            percepts (dict[str, bool]): A dictionary of percepts and their values.
+        """
         # 1) Create the clauses based on the percepts
         clauses = self._make_percept_clauses(i, j, percepts)
 
@@ -73,7 +103,18 @@ class KnowledgeBase:
         self.tell(*clauses)
 
     def ask_if_true(self, query: list[Literal]):
-        """Check if a query can be resolved with the knowledge base."""
+        """Check if a query can be resolved as true from the knowledge base.
+
+        This is a simple check and not a full resolution-based query. It checks
+        if the query literals are present as unit clauses.
+
+        Args:
+            query (list[Literal]): A list of literals to query.
+
+        Returns:
+            bool | None: True if all literals are known to be true, False if any
+                         are known to be false, and None otherwise.
+        """
         if all(Clause(lit) in self.clauses for lit in query):
             return True
 
@@ -83,7 +124,12 @@ class KnowledgeBase:
         return None
 
     def infer(self):
-        """Infer new knowledge based on the current knowledge base."""
+        """Perform inference by repeatedly applying unit propagation.
+
+        This method simplifies the knowledge base by using unit clauses to resolve
+        other clauses. This process is repeated until no more simplifications
+        can be made.
+        """
         # Get unit clauses as a set of unit literals
         model = {c.unit() for c in self.clauses if c.is_unit()}
         if not model:  # No unit clauses to simplify
@@ -107,14 +153,31 @@ class KnowledgeBase:
         self.infer()
 
     def _adjacent(self, i, j):
-        """Generate adjacent cells for a given cell (i, j)."""
+        """Generate valid adjacent cell coordinates for a given cell (i, j).
+
+        Args:
+            i (int): The row of the cell.
+            j (int): The column of the cell.
+
+        Yields:
+            tuple[int, int]: The coordinates of an adjacent cell.
+        """
         for di, dj in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
             ni, nj = i + di, j + dj
             if 0 <= ni < self.size and 0 <= nj < self.size:
                 yield (ni, nj)
 
     def _make_percept_clauses(self, i, j, percepts: dict[str, bool]):
-        """Generate clauses based on percepts for a given cell (i, j)."""
+        """Generate clauses based on percepts for a given cell (i, j).
+
+        Args:
+            i (int): The row of the cell.
+            j (int): The column of the cell.
+            percepts (dict[str, bool]): A dictionary of percepts.
+
+        Returns:
+            set[Clause]: A set of clauses representing the percepts.
+        """
         clauses = set()
 
         for percept, value in percepts.items():
@@ -130,7 +193,23 @@ class KnowledgeBase:
         return clauses
 
     def _breeze_axioms(self, i, j):
-        """Generate Breeze axioms for a given cell (i, j)."""
+        """Generate Breeze axioms for a given cell (i, j).
+
+        The axioms are:
+        - B_i_j <=> (P_adj1 or P_adj2 or ...)
+        This is converted to CNF as:
+        - (~B_i_j or P_adj1 or P_adj2 or ...)
+        - (B_i_j or ~P_adj1)
+        - (B_i_j or ~P_adj2)
+        - ...
+
+        Args:
+            i (int): The row of the cell.
+            j (int): The column of the cell.
+
+        Yields:
+            Clause: The axiom clauses.
+        """
         B = breeze(i, j)
         P_adj = [pit(*p) for p in self._adjacent(i, j)]
 
@@ -141,7 +220,23 @@ class KnowledgeBase:
         yield from (~P | B for P in P_adj)
 
     def _stench_axioms(self, i, j):
-        """Generate Stench axioms for a given cell (i, j)."""
+        """Generate Stench axioms for a given cell (i, j).
+
+        The axioms are:
+        - S_i_j <=> (W_adj1 or W_adj2 or ...)
+        This is converted to CNF as:
+        - (~S_i_j or W_adj1 or W_adj2 or ...)
+        - (S_i_j or ~W_adj1)
+        - (S_i_j or ~W_adj2)
+        - ...
+
+        Args:
+            i (int): The row of the cell.
+            j (int): The column of the cell.
+
+        Yields:
+            Clause: The axiom clauses.
+        """
         S = stench(i, j)
         W_adj = [wumpus(*w) for w in self._adjacent(i, j)]
 
