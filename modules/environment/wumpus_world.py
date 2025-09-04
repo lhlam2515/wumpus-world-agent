@@ -1,17 +1,35 @@
 import random
 from typing import Iterator
-from itertools import product
 from modules.utils import Action
 from .environment import Environment
 from .entity import Explorer, Gold, Pit, Wumpus, Thing
 
 
 class WumpusWorld(Environment):
-    """A Wumpus World environment for the Wumpus World agent."""
+    """A Wumpus World environment for the Wumpus World agent.
+
+    This class sets up the Wumpus World, including the agent, Wumpuses,
+    pits, and gold. It handles the simulation loop, percept generation,
+    and action execution.
+
+    Attributes:
+        wumpus_program (type): The class to use for creating Wumpus agents.
+    """
 
     def __init__(
         self, agent_program, size=8, k_wumpus=2, pit_density=0.2, **kwargs
     ):
+        """Initializes the WumpusWorld.
+
+        Args:
+            agent_program (Callable | list[Callable]): The program(s) for the Explorer agent(s).
+            size (int, optional): The size of the grid. Defaults to 8.
+            k_wumpus (int, optional): The number of Wumpuses. Defaults to 2.
+            pit_density (float, optional): The density of pits. Defaults to 0.2.
+            **kwargs:
+                wumpus_program (type): The Wumpus agent class.
+                things (list): A list of things to pre-populate the world with.
+        """
         super().__init__(size, size)
         self.wumpus_program = kwargs.get("wumpus_program", Wumpus)
         if things := kwargs.get("things", None):
@@ -20,7 +38,13 @@ class WumpusWorld(Environment):
             self.init_world(agent_program, k_wumpus, pit_density)
 
     def init_world(self, agent_program, k_wumpus, pit_density):
-        """Spawn agents, wumpuses, and pits in the environment."""
+        """Spawn agents, wumpuses, and pits in the environment randomly.
+
+        Args:
+            agent_program (Callable | list[Callable]): The agent program(s).
+            k_wumpus (int): The number of Wumpuses.
+            pit_density (float): The density of pits.
+        """
         pit_locations = []
         wumpus_locations = []
 
@@ -56,12 +80,21 @@ class WumpusWorld(Environment):
             self.add_thing(agent_program, (0, 0), replace=True)
 
     def init_world_from_map(self, things: list[tuple[Thing, tuple[int, int]]]):
-        """Initialize the world with a predefined list of things."""
+        """Initialize the world with a predefined list of things.
+
+        Args:
+            things (list[tuple[Thing, tuple[int, int]]]): A list where each
+                element is a tuple of a Thing and its location.
+        """
         for thing, location in things:
             self.add_thing(thing, location, replace=True)
 
     def get_world(self) -> Iterator[list[list[Thing]]]:
-        """Return the items in the Wumpus World."""
+        """Return the items in the Wumpus World as a 2D grid.
+
+        Returns:
+            Iterator[list[list[Thing]]]: An iterator over the rows of the world grid.
+        """
         world = [
             [[] for _ in range(self._x_start, self._x_end + 1)]
             for _ in range(self._y_start, self._y_end + 1)
@@ -73,7 +106,17 @@ class WumpusWorld(Environment):
         return reversed(world)
 
     def percept(self, agent):
-        """Get the percept for the given agent."""
+        """Get the percept for the given agent.
+
+        This includes breeze, stench, glitter, bump, and scream.
+        Wumpus agents get a special "explorer" percept.
+
+        Args:
+            agent (Agent): The agent for which to generate percepts.
+
+        Returns:
+            dict[str, bool]: A dictionary of percepts.
+        """
         things_near = self.things_near(agent.location)
 
         percepts: dict[str, bool] = {
@@ -112,7 +155,15 @@ class WumpusWorld(Environment):
         return percepts
 
     def execute_action(self, agent, action):
-        """Execute the given action for the specified agent."""
+        """Execute the given action for the specified agent.
+
+        Handles actions for both Explorer and Wumpus agents, updating the
+        agent's state and the environment accordingly.
+
+        Args:
+            agent (Agent): The agent performing the action.
+            action (Action): The action to execute.
+        """
         if isinstance(agent, Explorer) and self.in_danger(agent):
             return
 
@@ -172,7 +223,16 @@ class WumpusWorld(Environment):
             agent.bump = self.move_to(agent, new_location, (Pit, Wumpus))
 
     def in_danger(self, agent):
-        """Check if Explorer is in danger, if he is, kill him."""
+        """Check if an Explorer is in a dangerous location and update its status.
+
+        An agent is in danger if it is in the same location as a live Wumpus or a pit.
+
+        Args:
+            agent (Explorer): The agent to check.
+
+        Returns:
+            bool: True if the agent was in danger (and is now dead), False otherwise.
+        """
         if not agent.alive:
             return True  # Agent is already dead
 
@@ -185,7 +245,13 @@ class WumpusWorld(Environment):
         return False
 
     def is_done(self):
-        """Check if the environment is in a terminal state."""
+        """Check if the simulation is over.
+
+        The simulation is over if all Explorer agents are dead or have climbed out.
+
+        Returns:
+            bool: True if the simulation is done, False otherwise.
+        """
         explorer = [
             agent for agent in self.agents if isinstance(agent, Explorer)]
         # Check if all explorers are dead or have climbed out
