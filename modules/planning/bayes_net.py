@@ -1,3 +1,5 @@
+# This implementation is based on the source code from the AIMA-Python project:
+# https://github.com/aimacode/aima-python
 from functools import reduce
 
 # =====================
@@ -6,7 +8,25 @@ from functools import reduce
 
 
 class BayesNode:
+    """A node in a Bayesian network.
+
+    Attributes:
+        variable (str): The name of the variable.
+        parents (list[str]): A list of parent variable names.
+        cpt (dict): The conditional probability table.
+        children (list[BayesNode]): A list of child nodes.
+    """
+
     def __init__(self, variable, parents, cpt):
+        """Initializes a BayesNode.
+
+        Args:
+            variable (str): The name of the variable.
+            parents (list[str] or str): The parent(s) of the node.
+            cpt (dict or float): The conditional probability table.
+                If a float, it's the probability of the variable being True
+                given no parents.
+        """
         self.variable = variable
         self.parents = list(parents)  # Keep consistent order
         # Normalize CPT keys to tuples in correct parent order
@@ -18,7 +38,15 @@ class BayesNode:
         self.children = []
 
     def p(self, value, event):
-        """Return P(self.variable=value | parent assignments in event)."""
+        """Return P(self.variable=value | parent assignments in event).
+
+        Args:
+            value (bool): The value of the variable.
+            event (dict): A dictionary of variable assignments.
+
+        Returns:
+            float: The conditional probability.
+        """
         p_true = self.cpt[event_vals(event, self.parents)]
         p_true = clamp_prob(p_true)
         return p_true if value else 1 - p_true
@@ -28,7 +56,20 @@ class BayesNode:
 
 
 class BayesNet:
+    """A Bayesian network.
+
+    Attributes:
+        var_node (dict[str, BayesNode]): A mapping from variable names to BayesNode objects.
+        default_prob (float): The default probability for nodes created on the fly.
+    """
+
     def __init__(self, default_prob=0.5):
+        """Initializes a BayesNet.
+
+        Args:
+            default_prob (float, optional): The default probability for nodes
+                created without a specified CPT. Defaults to 0.5.
+        """
         self.var_node: dict[str, BayesNode] = {}
         self.default_prob = default_prob
 
@@ -51,12 +92,36 @@ class BayesNet:
 
 
 class Factor:
+    """A factor in a Bayesian network, used for variable elimination.
+
+    A factor is a function from a set of variables to a real number.
+    It's represented by a conditional probability table (CPT).
+
+    Attributes:
+        variables (list[str]): A list of variable names in the factor.
+        cpt (dict): The conditional probability table for the factor.
+    """
+
     def __init__(self, variables, cpt):
+        """Initializes a Factor.
+
+        Args:
+            variables (list[str]): A list of variable names.
+            cpt (dict): The conditional probability table.
+        """
         self.variables = list(variables)  # Keep order consistent
         self.cpt = {k: clamp_prob(v) for k, v in cpt.items()}
 
     def pointwise_product(self, other, bn):
-        """Return the pointwise product of this factor with another."""
+        """Return the pointwise product of this factor with another.
+
+        Args:
+            other (Factor): The other factor to multiply with.
+            bn (BayesNet): The Bayesian network, used for context.
+
+        Returns:
+            Factor: The resulting factor from the pointwise product.
+        """
         if not self.variables:
             return other
         if not other.variables:
@@ -69,7 +134,15 @@ class Factor:
         return Factor(variables, cpt)
 
     def sum_out(self, var, bn):
-        """Sum out a variable from this factor."""
+        """Sum out a variable from this factor.
+
+        Args:
+            var (str): The variable to sum out.
+            bn (BayesNet): The Bayesian network.
+
+        Returns:
+            Factor: A new factor with the variable summed out.
+        """
         if var not in self.variables:
             return self
         variables = [X for X in self.variables if X != var]
@@ -80,7 +153,18 @@ class Factor:
         return Factor(variables, cpt)
 
     def normalize(self):
-        """Normalize the factor's CPT."""
+        """Normalize the factor's CPT.
+
+        This is typically done for a factor with a single variable to get a
+        probability distribution.
+
+        Returns:
+            dict: A normalized probability distribution.
+
+        Raises:
+            AssertionError: If the factor has more than one variable.
+            ValueError: If the total probability is not positive.
+        """
         assert len(
             self.variables) == 1, "Normalization only works on single-variable factors"
         freq = {k: v for (k,), v in self.cpt.items()}
@@ -92,7 +176,14 @@ class Factor:
         return freq
 
     def p(self, e):
-        """Return the probability of the event e given this factor."""
+        """Return the probability of the event e given this factor.
+
+        Args:
+            e (dict): An event (a dictionary of variable assignments).
+
+        Returns:
+            float: The probability of the event.
+        """
         return clamp_prob(self.cpt[event_vals(e, self.variables)])
 
 
@@ -101,7 +192,14 @@ class Factor:
 # =====================
 
 def clamp_prob(p):
-    """Clamp probability to [0, 1] to avoid floating-point drift."""
+    """Clamp probability to [0, 1] to avoid floating-point drift.
+
+    Args:
+        p (float): The probability value.
+
+    Returns:
+        float: The clamped probability.
+    """
     if p < 0 and p > -1e-12:
         p = 0.0
     elif p > 1 and p < 1 + 1e-12:
@@ -110,14 +208,35 @@ def clamp_prob(p):
 
 
 def event_vals(event, variables):
-    """Return the values of variables in event as a tuple."""
+    """Return the values of variables in event as a tuple.
+
+    Args:
+        event (dict or tuple): An event, which can be a dictionary of
+            variable assignments or a tuple of values.
+        variables (list[str]): The list of variable names.
+
+    Returns:
+        tuple: A tuple of values corresponding to the variables.
+    """
     if isinstance(event, tuple) and len(event) == len(variables):
         return event
     return tuple(event[var] for var in variables)
 
 
 def all_events(variables, bn, evidence):
-    """Generate all possible events for the given variables, considering evidence."""
+    """Generate all possible events for the given variables, considering evidence.
+
+    This is a recursive generator that yields all possible assignments for a
+    list of variables.
+
+    Args:
+        variables (list[str]): The list of variables to generate events for.
+        bn (BayesNet): The Bayesian network.
+        evidence (dict): A dictionary of known variable assignments.
+
+    Yields:
+        dict: A complete assignment for the variables.
+    """
     if not variables:
         yield evidence.copy()
     else:
@@ -135,7 +254,19 @@ def all_events(variables, bn, evidence):
 # =====================
 
 def enumeration_ask(X, evidence, bn):
-    """Return P(X=True|evidence) and P(X=False|evidence) via enumeration."""
+    """Return P(X=True|evidence) and P(X=False|evidence) via enumeration.
+
+    Args:
+        X (str): The query variable.
+        evidence (dict): A dictionary of observed variable assignments.
+        bn (BayesNet): The Bayesian network.
+
+    Returns:
+        dict: A dictionary with the probability of X being True and False.
+
+    Raises:
+        ValueError: If the total probability is not positive.
+    """
     Q = {True: 0.0, False: 0.0}
     for x_val in (False, True):
         Q[x_val] = enumerate_all(bn.variables(), {**evidence, X: x_val}, bn)
@@ -147,7 +278,18 @@ def enumeration_ask(X, evidence, bn):
 
 
 def enumerate_all(vars_list, ev, bn):
-    """Enumerate all assignments of variables in vars_list given evidence ev."""
+    """Enumerate all assignments of variables in vars_list given evidence ev.
+
+    This is a recursive helper function for `enumeration_ask`.
+
+    Args:
+        vars_list (list[str]): The list of variables to enumerate.
+        ev (dict): The evidence (known variable assignments).
+        bn (BayesNet): The Bayesian network.
+
+    Returns:
+        float: The probability of the evidence.
+    """
     if not vars_list:
         return 1.0
     first, rest = vars_list[0], vars_list[1:]
@@ -162,7 +304,19 @@ def enumerate_all(vars_list, ev, bn):
 
 
 def elimination_ask(X, evidence, bn):
-    """Compute P(X|evidence) by variable elimination."""
+    """Compute P(X|evidence) by variable elimination.
+
+    Args:
+        X (str): The query variable.
+        evidence (dict): A dictionary of observed variable assignments.
+        bn (BayesNet): The Bayesian network.
+
+    Returns:
+        dict: A probability distribution for the query variable X.
+
+    Raises:
+        AssertionError: If the query variable is in the evidence.
+    """
     assert X not in evidence, "Query variable must be distinct from evidence"
     factors = []
     for var in reversed(bn.variables()):
@@ -174,6 +328,19 @@ def elimination_ask(X, evidence, bn):
 
 
 def make_factor(var, evidence, bn):
+    """Create a factor for a variable.
+
+    The factor's variables are the variable itself and its parents, excluding
+    any variables that are part of the evidence.
+
+    Args:
+        var (str): The variable for which to create the factor.
+        evidence (dict): The observed evidence.
+        bn (BayesNet): The Bayesian network.
+
+    Returns:
+        Factor: The newly created factor.
+    """
     node = bn.variable_node(var)
     variables = [X for X in [var] + node.parents if X not in evidence]
     cpt = {}
@@ -184,12 +351,34 @@ def make_factor(var, evidence, bn):
 
 
 def pointwise_product(factors, bn):
+    """Calculate the pointwise product of a list of factors.
+
+    Args:
+        factors (list[Factor]): A list of factors to multiply.
+        bn (BayesNet): The Bayesian network.
+
+    Returns:
+        Factor: The resulting factor.
+    """
     if not factors:
         return Factor([], {(): 1.0})
     return reduce(lambda f, g: f.pointwise_product(g, bn), factors)
 
 
 def sum_out(var, factors, bn):
+    """Sum out a variable from a list of factors.
+
+    This function finds all factors containing the variable, computes their
+    pointwise product, and then sums out the variable from the resulting factor.
+
+    Args:
+        var (str): The variable to sum out.
+        factors (list[Factor]): The list of factors.
+        bn (BayesNet): The Bayesian network.
+
+    Returns:
+        list[Factor]: The new list of factors after summing out the variable.
+    """
     var_factors = [f for f in factors if var in f.variables]
     others = [f for f in factors if var not in f.variables]
     if not var_factors:
